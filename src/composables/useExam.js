@@ -57,8 +57,8 @@ export function useExam() {
     return Object.fromEntries(rows.map(row => [row.key, row.value]))
   }
 
-  function balancedPick(pool, count) {
-    const allocation = allocateCounts({ surface: .35, understanding: .35, application: .25, trick: .05 }, Math.min(count, pool.length))
+  function balancedPick(pool, count, targets = { surface: .35, understanding: .35, application: .25, trick: .05 }) {
+    const allocation = allocateCounts(targets, Math.min(count, pool.length))
     const picked = []
     Object.entries(allocation).forEach(([level, amount]) => {
       picked.push(...shuffle(pool.filter(question => question.difficulty === level)).slice(0, amount))
@@ -66,10 +66,17 @@ export function useExam() {
     return shuffle([...picked, ...shuffle(pool.filter(question => !picked.includes(question)))]).slice(0, Math.min(count, pool.length))
   }
 
+  function sectionPick(pool, count, section) {
+    const targets = section === 'databases'
+      ? { surface: .10, understanding: .20, application: .60, trick: .10 }
+      : undefined
+    return balancedPick(pool, count, targets)
+  }
+
   function weightedPool(pool, weights, count) {
     const picked = []
     Object.entries(allocateCounts(weights, count)).forEach(([section, amount]) => {
-      picked.push(...balancedPick(pool.filter(question => question.section === section), amount))
+      picked.push(...sectionPick(pool.filter(question => question.section === section), amount, section))
     })
     return shuffle([...picked, ...balancedPick(pool.filter(question => !picked.includes(question)), count - picked.length)]).slice(0, count)
   }
@@ -92,7 +99,8 @@ export function useExam() {
         ? { security: .24, databases: .20, algorithms: .20, modeling: .14, networks: .10, information: .07, graphics: .05 }
         : { networks: .24, databases: .22, algorithms: .22, modeling: .16, graphics: .08, information: .08 }
       quiz.value = weightedPool(pool, weights, count)
-    } else quiz.value = balancedPick(pool, count)
+    } else if (kind === 'thematic') quiz.value = sectionPick(pool, count, selectedSection.value)
+    else quiz.value = balancedPick(pool, count)
     index.value = 0
     answers.value = []
     selected.value = null
