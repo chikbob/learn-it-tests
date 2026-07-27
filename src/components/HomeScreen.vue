@@ -1,0 +1,73 @@
+<template>
+  <main class="home">
+    <section class="intro">
+      <div>
+        <p class="eyebrow"><Sparkles :size="16" /> Подготовка к магистратуре</p>
+        <h1>Тренируй знания.<br><span>Понимай ошибки.</span></h1>
+        <p class="lead">Вопросы по программе вступительного экзамена: от базовых терминов до SQL, кода и расчета подсетей.</p>
+      </div>
+      <div class="progress-panel">
+        <div class="progress-title"><span>Твой прогресс</span><strong>{{ progress.sessions }} сессий</strong></div>
+        <div class="big-stat">{{ totalAccuracy }}<small>%</small></div>
+        <p>Общая точность</p>
+        <div class="meter"><span :style="{ width: totalAccuracy + '%' }"></span></div>
+        <div class="mini-stats"><span><b>{{ progress.correct }}</b> верных</span><span><b>{{ progress.mistakes.length }}</b> на повтор</span></div>
+      </div>
+    </section>
+
+    <section class="setup">
+      <div class="section-heading"><div><p class="step">01</p><h2>Выбери направление</h2></div></div>
+      <div class="segmented">
+        <button :class="{ active: track === 'it' }" @click="$emit('update:track', 'it')"><BookOpen :size="20" /> Информационные технологии</button>
+        <button :class="{ active: track === 'security' }" @click="$emit('update:track', 'security')"><ShieldCheck :size="20" /> Информационная безопасность</button>
+      </div>
+
+      <div class="section-heading"><div><p class="step">02</p><h2>Режим тренировки</h2></div><span>Ответы сохраняются на устройстве</span></div>
+      <div class="mode-grid">
+        <button v-for="item in modes" :key="item.id" class="mode-card" :class="{ active: mode === item.id }" @click="$emit('update:mode', item.id)">
+          <span class="mode-icon"><component :is="item.icon" :size="22" /></span>
+          <span class="mode-copy"><strong>{{ item.title }}</strong><small>{{ item.note }}</small></span>
+          <span class="count">{{ item.count }}</span>
+        </button>
+      </div>
+
+      <div v-if="mode === 'thematic'" class="topics">
+        <label>Тема теста</label>
+        <div class="topic-list">
+          <button v-for="([key, item]) in availableSections" :key="key" :class="{ active: selectedSection === key }" @click="$emit('update:selectedSection', key)"><span :style="{ background: item.color }"></span>{{ item.short }}</button>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="primary" @click="$emit('start')">Начать тест <ArrowRight :size="19" /></button>
+        <button class="secondary" @click="$emit('catalog')"><LibraryBig :size="18" /> Справочник вопросов</button>
+        <button v-if="progress.activeQuiz" class="secondary" @click="$emit('resume')"><Clock3 :size="18" /> Продолжить тест</button>
+        <button v-if="progress.mistakes.length" class="secondary" @click="$emit('mistakes')"><RotateCcw :size="18" /> Повторить ошибки <b>{{ progress.mistakes.length }}</b></button>
+      </div>
+    </section>
+
+    <section v-if="progress.history.length" class="history-section">
+      <div class="section-heading"><div><History :size="20" /><h2>История прохождений</h2></div><button class="clear-button" @click="$emit('clear')"><Trash2 :size="16" /> Очистить историю</button></div>
+      <div class="history-list">
+        <div v-for="session in progress.history.slice(0, 8)" :key="session.id" class="history-row">
+          <span>{{ formatDate(session.date) }}</span>
+          <strong>{{ modeLabel(session.mode) }}<small>{{ session.track === 'security' ? 'ИБ' : 'ИТ' }}<template v-if="session.topic"> · {{ sections[session.topic].short }}</template></small></strong>
+          <b>{{ session.grade ? `${session.grade} б.` : `${session.score}/${session.total}` }}</b>
+          <i>{{ Math.round(session.score / session.total * 100) }}%</i>
+        </div>
+      </div>
+    </section>
+  </main>
+</template>
+
+<script setup>
+import { ArrowRight, BookOpen, Clock3, History, LibraryBig, RotateCcw, ShieldCheck, Sparkles, Trash2 } from 'lucide-vue-next'
+import { sections } from '../questions'
+
+defineProps({ progress: Object, totalAccuracy: Number, modes: Array, track: String, mode: String, selectedSection: String, availableSections: Array, modeLabel: Function })
+defineEmits(['update:track', 'update:mode', 'update:selectedSection', 'start', 'resume', 'mistakes', 'catalog', 'clear'])
+
+function formatDate(value) {
+  return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+}
+</script>
