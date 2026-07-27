@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, CircleAlert, Clock3, RotateCcw, ShieldCheck, Sparkles, Target, Trophy, X } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, CircleAlert, Clock3, History, RotateCcw, ShieldCheck, Sparkles, Target, Trash2, Trophy, X } from 'lucide-vue-next'
 import { difficultyLabels, questions, sections } from './questions'
 
 const screen = ref('home')
@@ -12,8 +12,9 @@ const index = ref(0)
 const selected = ref(null)
 const answers = ref([])
 
-const saved = JSON.parse(localStorage.getItem('learnit-progress') || '{"sessions":0,"correct":0,"total":0,"mistakes":[]}')
-const progress = ref(saved)
+const emptyProgress = () => ({ sessions: 0, correct: 0, total: 0, mistakes: [], mastery: {}, history: [], activeQuiz: null })
+const stored = JSON.parse(localStorage.getItem('learnit-progress') || 'null')
+const progress = ref({ ...emptyProgress(), ...(stored || {}) })
 
 const availableSections = computed(() => Object.entries(sections).filter(([key]) => track.value === 'security' || key !== 'security'))
 const current = computed(() => quiz.value[index.value])
@@ -34,24 +35,44 @@ const resultsBySection = computed(() => {
 })
 
 const modes = [
-  { id: 'diagnostic', icon: Target, title: 'Диагностика', note: 'Все разделы, разбор после ответа', count: 15 },
-  { id: 'thematic', icon: BookOpen, title: 'По теме', note: 'Фокус на выбранном разделе', count: 12 },
-  { id: 'exam', icon: Clock3, title: 'Симуляция', note: 'Ответы и разбор только в конце', count: 20 },
+  { id: 'diagnostic', icon: Target, title: 'Диагностика', note: 'Все разделы, разбор после ответа', count: 30 },
+  { id: 'thematic', icon: BookOpen, title: 'По теме', note: '70% выбранной темы, 30% связанных', count: 15 },
+  { id: 'exam', icon: Clock3, title: 'Симуляция', note: '40 вопросов по весам экзамена', count: 40 },
 ]
 
 function shuffle(list) {
   return [...list].sort(() => Math.random() - 0.5)
 }
 
+function allocateCounts(weights, count) {
+  const rows = Object.entries(weights).map(([key, ratio]) => ({ key, exact: ratio * count, value: Math.floor(ratio * count) }))
+  let remaining = count - rows.reduce((sum, row) => sum + row.value, 0)
+  rows.sort((a, b) => (b.exact - b.value) - (a.exact - a.value))
+  rows.forEach(row => { if (remaining-- > 0) row.value++ })
+  return Object.fromEntries(rows.map(row => [row.key, row.value]))
+}
+
 function balancedPick(pool, count) {
   const targets = { surface: .35, understanding: .35, application: .25, trick: .05 }
+  const allocation = allocateCounts(targets, Math.min(count, pool.length))
   const picked = []
-  Object.entries(targets).forEach(([level, ratio]) => {
-    const amount = Math.max(level === 'trick' ? 1 : 0, Math.round(count * ratio))
+  Object.entries(allocation).forEach(([level, amount]) => {
     picked.push(...shuffle(pool.filter(q => q.difficulty === level)).slice(0, amount))
   })
   const rest = shuffle(pool.filter(q => !picked.includes(q)))
   return shuffle([...picked, ...rest].slice(0, Math.min(count, pool.length)))
+}
+
+function weightedPool(pool, weights, count) {
+  const picked = []
+  Object.entries(allocateCounts(weights, count)).forEach(([section, amount]) => {
+    picked.push(...balancedPick(pool.filter(q => q.section === section), amount))
+  })
+  return shuffle([...picked, ...balancedPick(pool.filter(q => !picked.includes(q)), count - picked.length)]).slice(0, count)
+}
+
+function persist() {
+  localStorage.setItem('learnit-progress', JSON.stringify(progress.value))
 }
 
 function startQuiz(kind = mode.value) {
@@ -67,10 +88,30 @@ function startQuiz(kind = mode.value) {
     pool = questions.filter(q => progress.value.mistakes.includes(q.id))
     count = pool.length
   }
-  quiz.value = balancedPick(pool, count)
+  if (kind === 'exam' || kind === 'diagnostic') {
+    const weights = track.value === 'security'
+      ? { security: .24, databases: .20, algorithms: .20, modeling: .14, networks: .10, information: .07, graphics: .05 }
+      : { networks: .24, databases: .22, algorithms: .22, modeling: .16, graphics: .08, information: .08 }
+    quiz.value = weightedPool(pool, weights, count)
+  } else quiz.value = balancedPick(pool, count)
   index.value = 0
   answers.value = []
   selected.value = null
+  screen.value = 'quiz'
+  progress.value.activeQuiz = { ids: quiz.value.map(q => q.id), mode: kind, track: track.value, selectedSection: selectedSection.value, index: 0, answers: [] }
+  persist()
+}
+
+function resumeQuiz() {
+  const active = progress.value.activeQuiz
+  if (!active) return
+  quiz.value = active.ids.map(id => questions.find(q => q.id === id)).filter(Boolean)
+  mode.value = active.mode
+  track.value = active.track
+  selectedSection.value = active.selectedSection
+  index.value = active.index
+  answers.value = active.answers
+  selected.value = answers.value[index.value] ?? null
   screen.value = 'quiz'
 }
 
@@ -83,6 +124,8 @@ function confirm() {
   if (selected.value === null || answered.value) return
   answers.value[index.value] = selected.value
   answers.value = [...answers.value]
+  progress.value.activeQuiz = { ...progress.value.activeQuiz, answers: answers.value }
+  persist()
   if (isExam.value) next()
 }
 
@@ -91,19 +134,31 @@ function next() {
   if (index.value < quiz.value.length - 1) {
     index.value++
     selected.value = answers.value[index.value] ?? null
+    progress.value.activeQuiz = { ...progress.value.activeQuiz, index: index.value }
+    persist()
   } else finish()
 }
 
 function finish() {
   const wrongIds = wrongQuestions.value.map(q => q.id)
   const resolved = quiz.value.filter((q, i) => answers.value[i] === q.correct).map(q => q.id)
+  const mastery = { ...progress.value.mastery }
+  wrongIds.forEach(id => { mastery[id] = 0 })
+  resolved.forEach(id => {
+    if (progress.value.mistakes.includes(id)) mastery[id] = (mastery[id] || 0) + 1
+  })
+  const remainingMistakes = [...new Set([...progress.value.mistakes, ...wrongIds])].filter(id => (mastery[id] || 0) < 2)
+  const sectionResults = Object.fromEntries(resultsBySection.value.map(row => [row.key, { correct: row.correct, total: row.total }]))
   progress.value = {
     sessions: progress.value.sessions + 1,
     correct: progress.value.correct + sessionScore.value,
     total: progress.value.total + quiz.value.length,
-    mistakes: [...new Set([...progress.value.mistakes.filter(id => !resolved.includes(id)), ...wrongIds])]
+    mistakes: remainingMistakes,
+    mastery,
+    history: [{ id: Date.now(), date: new Date().toISOString(), mode: mode.value, track: track.value, topic: mode.value === 'thematic' ? selectedSection.value : null, score: sessionScore.value, total: quiz.value.length, sections: sectionResults }, ...progress.value.history].slice(0, 50),
+    activeQuiz: null
   }
-  localStorage.setItem('learnit-progress', JSON.stringify(progress.value))
+  persist()
   screen.value = 'results'
 }
 
@@ -111,20 +166,25 @@ function goHome() {
   screen.value = 'home'
   selected.value = null
 }
+
+function clearProgress() {
+  if (!window.confirm('Удалить историю, результаты и журнал ошибок?')) return
+  progress.value = emptyProgress()
+  localStorage.removeItem('learnit-progress')
+  screen.value = 'home'
+}
+
+function modeLabel(id) {
+  return modes.find(item => item.id === id)?.title || 'Работа над ошибками'
+}
+
+function formatDate(value) {
+  return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+}
 </script>
 
 <template>
   <div class="app-shell">
-    <header class="topbar">
-      <button class="brand" @click="goHome" aria-label="На главную">
-        <span class="brand-mark">L</span><span>Learn<span>IT</span></span>
-      </button>
-      <div class="header-status">
-        <span><Trophy :size="16" /> {{ totalAccuracy }}% точность</span>
-        <span class="avatar">А</span>
-      </div>
-    </header>
-
     <main v-if="screen === 'home'" class="home">
       <section class="intro">
         <div>
@@ -168,7 +228,20 @@ function goHome() {
 
         <div class="actions">
           <button class="primary" @click="startQuiz()">Начать тест <ArrowRight :size="19" /></button>
+          <button v-if="progress.activeQuiz" class="secondary" @click="resumeQuiz"><Clock3 :size="18" /> Продолжить тест</button>
           <button v-if="progress.mistakes.length" class="secondary" @click="startQuiz('mistakes')"><RotateCcw :size="18" /> Повторить ошибки <b>{{ progress.mistakes.length }}</b></button>
+        </div>
+      </section>
+
+      <section v-if="progress.history.length" class="history-section">
+        <div class="section-heading"><div><History :size="20" /><h2>История прохождений</h2></div><button class="clear-button" @click="clearProgress"><Trash2 :size="16" /> Очистить историю</button></div>
+        <div class="history-list">
+          <div v-for="session in progress.history.slice(0, 8)" :key="session.id" class="history-row">
+            <span>{{ formatDate(session.date) }}</span>
+            <strong>{{ modeLabel(session.mode) }}<small>{{ session.track === 'security' ? 'ИБ' : 'ИТ' }}<template v-if="session.topic"> · {{ sections[session.topic].short }}</template></small></strong>
+            <b>{{ session.score }}/{{ session.total }}</b>
+            <i>{{ Math.round(session.score / session.total * 100) }}%</i>
+          </div>
         </div>
       </section>
     </main>
@@ -176,7 +249,7 @@ function goHome() {
     <main v-else-if="screen === 'quiz' && current" class="quiz-page">
       <div class="quiz-top">
         <button class="icon-button" @click="goHome" title="Выйти"><ArrowLeft :size="21" /></button>
-        <div class="quiz-progress"><div><span>{{ modes.find(m => m.id === mode)?.title || 'Работа над ошибками' }}</span><b>{{ index + 1 }} / {{ quiz.length }}</b></div><div class="meter"><span :style="{ width: ((index + 1) / quiz.length * 100) + '%' }"></span></div></div>
+        <div class="quiz-progress"><div><span>{{ modeLabel(mode) }}</span><b>{{ index + 1 }} / {{ quiz.length }}</b></div><div class="meter"><span :style="{ width: ((index + 1) / quiz.length * 100) + '%' }"></span></div></div>
       </div>
       <article class="question-card">
         <div class="question-meta"><span :style="{ color: sections[current.section].color }">{{ sections[current.section].label }}</span><i>{{ difficultyLabels[current.difficulty] }}</i></div>
