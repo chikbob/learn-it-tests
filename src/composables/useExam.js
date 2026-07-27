@@ -13,6 +13,7 @@ export function useExam() {
   const index = ref(0)
   const selected = ref(null)
   const answers = ref([])
+  const reviewSession = ref(null)
   const stored = JSON.parse(localStorage.getItem('learnit-progress') || 'null')
   const progress = ref({ ...emptyProgress(), ...(stored || {}) })
   if (progress.value.activeQuiz?.mode === 'exam' && progress.value.activeQuiz.ids.length !== 30) {
@@ -32,10 +33,14 @@ export function useExam() {
   const answered = computed(() => answers.value[index.value] !== undefined)
   const isCorrect = computed(() => answered.value && answers.value[index.value] === current.value?.correct)
   const totalAccuracy = computed(() => progress.value.total ? Math.round(progress.value.correct / progress.value.total * 100) : 0)
-  const sessionScore = computed(() => answers.value.filter((answer, i) => answer === quiz.value[i]?.correct).length)
-  const examGrade = computed(() => quiz.value.length ? Math.max(1, Math.round(sessionScore.value / quiz.value.length * 100)) : 1)
+  const sessionScore = computed(() => reviewSession.value?.score ?? answers.value.filter((answer, i) => answer === quiz.value[i]?.correct).length)
+  const resultTotal = computed(() => reviewSession.value?.total ?? quiz.value.length)
+  const examGrade = computed(() => reviewSession.value?.grade ?? (resultTotal.value ? Math.max(1, Math.round(sessionScore.value / resultTotal.value * 100)) : 1))
   const wrongQuestions = computed(() => quiz.value.filter((question, i) => answers.value[i] !== question.correct))
   const resultsBySection = computed(() => {
+    if (reviewSession.value && !quiz.value.length) {
+      return Object.entries(reviewSession.value.sections || {}).map(([key, value]) => ({ key, ...value, percent: Math.round(value.correct / value.total * 100) }))
+    }
     const map = {}
     quiz.value.forEach((question, i) => {
       map[question.section] ||= { total: 0, correct: 0 }
@@ -86,6 +91,7 @@ export function useExam() {
   }
 
   function startQuiz(kind = mode.value) {
+    reviewSession.value = null
     mode.value = kind
     let pool = questions.filter(question => track.value === 'security' || question.section !== 'security')
     let count = modes.find(item => item.id === kind)?.count || 12
@@ -112,6 +118,7 @@ export function useExam() {
   function resumeQuiz() {
     const active = progress.value.activeQuiz
     if (!active) return
+    reviewSession.value = null
     quiz.value = active.ids.map(id => questions.find(question => question.id === id)).filter(Boolean)
     mode.value = active.mode
     track.value = active.track
@@ -161,7 +168,7 @@ export function useExam() {
       total: progress.value.total + quiz.value.length,
       mistakes: remainingMistakes,
       mastery,
-      history: [{ id: Date.now(), date: new Date().toISOString(), mode: mode.value, track: track.value, topic: mode.value === 'thematic' ? selectedSection.value : null, score: sessionScore.value, grade: isExam.value ? examGrade.value : null, total: quiz.value.length, sections: sectionResults }, ...progress.value.history].slice(0, 50),
+      history: [{ id: Date.now(), date: new Date().toISOString(), mode: mode.value, track: track.value, topic: mode.value === 'thematic' ? selectedSection.value : null, score: sessionScore.value, grade: isExam.value ? examGrade.value : null, total: quiz.value.length, sections: sectionResults, questionIds: quiz.value.map(question => question.id), answers: [...answers.value] }, ...progress.value.history].slice(0, 50),
       activeQuiz: null,
     }
     persist()
@@ -171,6 +178,17 @@ export function useExam() {
   function goHome() {
     screen.value = 'home'
     selected.value = null
+  }
+
+  function openHistory(session) {
+    reviewSession.value = session
+    mode.value = session.mode
+    track.value = session.track
+    selectedSection.value = session.topic || 'networks'
+    quiz.value = (session.questionIds || []).map(id => questions.find(question => question.id === id)).filter(Boolean)
+    answers.value = [...(session.answers || [])]
+    selected.value = null
+    screen.value = 'results'
   }
 
   function setTrack(value) {
@@ -189,5 +207,5 @@ export function useExam() {
     return modes.find(item => item.id === id)?.title || 'Работа над ошибками'
   }
 
-  return { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, setTrack, clearProgress, modeLabel }
+  return { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, clearProgress, modeLabel }
 }

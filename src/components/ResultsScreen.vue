@@ -3,8 +3,8 @@
     <section class="result-hero">
       <p class="eyebrow"><Trophy :size="16" /> Тест завершен</p>
       <h1 v-if="isExam">{{ examGrade }} <small>баллов</small></h1>
-      <h1 v-else>{{ sessionScore }} из {{ quizLength }}</h1>
-      <p v-if="isExam">Верных ответов: {{ sessionScore }} из {{ quizLength }}. Все задания имеют одинаковый вес.</p>
+      <h1 v-else>{{ sessionScore }} из {{ resultTotal }}</h1>
+      <p v-if="isExam">Верных ответов: {{ sessionScore }} из {{ resultTotal }}. Все задания имеют одинаковый вес.</p>
       <p v-else>{{ summary }}</p>
     </section>
     <section class="result-content">
@@ -15,33 +15,52 @@
         </div>
       </div>
       <aside class="next-card">
-        <Target :size="24" /><h3>{{ wrongQuestions.length ? 'Следующий шаг' : 'Без ошибок' }}</h3>
-        <p>{{ wrongQuestions.length ? `${wrongQuestions.length} вопросов отправлено в персональное повторение.` : 'Все ответы верны. Можно переходить к новой симуляции.' }}</p>
-        <button v-if="wrongQuestions.length" class="primary" @click="$emit('mistakes')"><RotateCcw :size="18" /> Разобрать ошибки</button>
+        <History v-if="isHistoryReview" :size="24" /><Target v-else :size="24" />
+        <h3>{{ isHistoryReview ? 'Архив попытки' : wrongQuestions.length ? 'Следующий шаг' : 'Без ошибок' }}</h3>
+        <p v-if="isHistoryReview">Сохраненный результат можно просмотреть повторно в любое время.</p>
+        <p v-else>{{ wrongQuestions.length ? `${wrongQuestions.length} вопросов отправлено в персональное повторение.` : 'Все ответы верны. Можно переходить к новой симуляции.' }}</p>
+        <button v-if="wrongQuestions.length && !isHistoryReview" class="primary" @click="$emit('mistakes')"><RotateCcw :size="18" /> Разобрать ошибки</button>
         <button class="secondary" @click="$emit('home')">На главную</button>
       </aside>
     </section>
-    <section v-if="wrongQuestions.length" class="mistake-review">
-      <h2>Короткий разбор</h2>
-      <details v-for="question in wrongQuestions" :key="question.id">
-        <summary>{{ question.text }} <ChevronRight :size="18" /></summary>
-        <p><b>Правильный ответ:</b> {{ question.options[question.correct] }}</p><p>{{ question.explanation }}</p>
-      </details>
+    <section class="answer-review">
+      <div class="review-heading"><div><h2>Разбор ответов</h2><p v-if="quiz.length">Раскрой вопрос, чтобы увидеть все варианты и объяснение.</p></div><span v-if="quiz.length">{{ sessionScore }} верно · {{ resultTotal - sessionScore }} ошибок</span></div>
+      <div v-if="quiz.length" class="review-list">
+        <details v-for="(question, questionIndex) in quiz" :key="question.id" class="review-question">
+          <summary>
+            <span class="review-status" :class="{ correct: answers[questionIndex] === question.correct, wrong: answers[questionIndex] !== question.correct }"><Check v-if="answers[questionIndex] === question.correct" :size="16" /><X v-else :size="16" /></span>
+            <span><small>{{ sections[question.section].label }}</small><strong>{{ question.text }}</strong></span>
+            <ChevronRight :size="18" />
+          </summary>
+          <div class="review-details">
+            <pre v-if="question.code"><code>{{ question.code }}</code></pre>
+            <div class="review-options">
+              <div v-for="(option, optionIndex) in question.options" :key="option" :class="{ chosen: answers[questionIndex] === optionIndex, correct: question.correct === optionIndex, incorrect: answers[questionIndex] === optionIndex && question.correct !== optionIndex }">
+                <span>{{ ['А','Б','В','Г'][optionIndex] }}</span><b>{{ option }}</b>
+                <em v-if="question.correct === optionIndex"><Check :size="15" /> Правильный ответ</em>
+                <em v-else-if="answers[questionIndex] === optionIndex"><MousePointer2 :size="15" /> Ваш ответ</em>
+              </div>
+            </div>
+            <p class="review-explanation"><b>Объяснение:</b> {{ question.explanation }}</p>
+          </div>
+        </details>
+      </div>
+      <div v-else class="legacy-notice"><History :size="20" /><p><b>Детальный разбор недоступен.</b><br>Эта попытка была сохранена до появления протокола ответов. Итог и результаты по разделам восстановлены.</p></div>
     </section>
   </main>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { ChevronRight, RotateCcw, Target, Trophy } from 'lucide-vue-next'
+import { Check, ChevronRight, History, MousePointer2, RotateCcw, Target, Trophy, X } from 'lucide-vue-next'
 import { sections } from '../questions'
 
-const props = defineProps({ sessionScore: Number, quizLength: Number, examGrade: Number, isExam: Boolean, resultsBySection: Array, wrongQuestions: Array })
+const props = defineProps({ sessionScore: Number, resultTotal: Number, quiz: Array, answers: Array, examGrade: Number, isExam: Boolean, isHistoryReview: Boolean, resultsBySection: Array, wrongQuestions: Array })
 defineEmits(['mistakes', 'home'])
 
-const summary = computed(() => props.sessionScore / props.quizLength >= .8
+const summary = computed(() => props.sessionScore / props.resultTotal >= .8
   ? 'Отличный результат. Основные темы уже держатся уверенно.'
-  : props.sessionScore / props.quizLength >= .6
+  : props.sessionScore / props.resultTotal >= .6
     ? 'Хорошая база. Разбор ошибок поможет быстро поднять результат.'
     : 'Диагностика сработала: теперь понятно, что повторять в первую очередь.')
 </script>

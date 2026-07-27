@@ -48,24 +48,41 @@
 
     <section v-if="progress.history.length" class="history-section">
       <div class="section-heading"><div><History :size="20" /><h2>История прохождений</h2></div><button class="clear-button" @click="$emit('clear')"><Trash2 :size="16" /> Очистить историю</button></div>
+      <div class="history-toolbar">
+        <label>Режим
+          <select v-model="historyMode">
+            <option value="all">Все прохождения</option>
+            <option value="diagnostic">Диагностика</option>
+            <option value="thematic">По теме</option>
+            <option value="exam">Симуляция</option>
+            <option value="mistakes">Работа над ошибками</option>
+          </select>
+        </label>
+        <span>{{ filteredHistory.length }} {{ filteredHistory.length === 1 ? 'результат' : 'результатов' }}</span>
+      </div>
       <div class="history-list">
-        <div v-for="session in progress.history.slice(0, 8)" :key="session.id" class="history-row">
+        <button v-for="session in filteredHistory.slice(0, 12)" :key="session.id" class="history-row" @click="$emit('review', session)">
           <span>{{ formatDate(session.date) }}</span>
           <strong>{{ modeLabel(session.mode) }}<small>{{ session.track === 'security' ? 'ИБ' : 'ИТ' }}<template v-if="session.topic"> · {{ sections[session.topic].short }}</template></small></strong>
           <b>{{ session.grade ? `${session.grade} б.` : `${session.score}/${session.total}` }}</b>
-          <i>{{ Math.round(session.score / session.total * 100) }}%</i>
-        </div>
+          <i>{{ Math.round(session.score / session.total * 100) }}% <ChevronRight :size="15" /></i>
+        </button>
+        <p v-if="!filteredHistory.length" class="empty-state">В этом режиме пока нет завершенных тестов.</p>
       </div>
     </section>
   </main>
 </template>
 
 <script setup>
-import { ArrowRight, BookOpen, Clock3, History, LibraryBig, RotateCcw, ShieldCheck, Sparkles, Trash2 } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { ArrowRight, BookOpen, ChevronRight, Clock3, History, LibraryBig, RotateCcw, ShieldCheck, Sparkles, Trash2 } from 'lucide-vue-next'
 import { sections } from '../questions'
 
-defineProps({ progress: Object, totalAccuracy: Number, modes: Array, track: String, mode: String, selectedSection: String, availableSections: Array, modeLabel: Function })
-defineEmits(['update:track', 'update:mode', 'update:selectedSection', 'start', 'resume', 'mistakes', 'catalog', 'clear'])
+const props = defineProps({ progress: Object, totalAccuracy: Number, modes: Array, track: String, mode: String, selectedSection: String, availableSections: Array, modeLabel: Function })
+defineEmits(['update:track', 'update:mode', 'update:selectedSection', 'start', 'resume', 'mistakes', 'catalog', 'clear', 'review'])
+
+const historyMode = ref('all')
+const filteredHistory = computed(() => props.progress.history.filter(session => historyMode.value === 'all' || session.mode === historyMode.value))
 
 function formatDate(value) {
   return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))

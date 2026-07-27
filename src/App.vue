@@ -18,6 +18,7 @@
       @mistakes="startQuiz('mistakes')"
       @catalog="screen = 'catalog'"
       @clear="clearProgress"
+      @review="openHistory"
     />
     <QuizScreen
       v-else-if="screen === 'quiz' && current"
@@ -39,9 +40,12 @@
     <ResultsScreen
       v-else
       :session-score="sessionScore"
-      :quiz-length="quiz.length"
+      :result-total="resultTotal"
+      :quiz="quiz"
+      :answers="answers"
       :exam-grade="examGrade"
       :is-exam="isExam"
+      :is-history-review="Boolean(reviewSession)"
       :results-by-section="resultsBySection"
       :wrong-questions="wrongQuestions"
       @mistakes="startQuiz('mistakes')"
@@ -57,5 +61,5 @@ import QuizScreen from './components/QuizScreen.vue'
 import ResultsScreen from './components/ResultsScreen.vue'
 import { useExam } from './composables/useExam'
 
-const { screen, track, selectedSection, mode, quiz, index, selected, progress, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, setTrack, clearProgress, modeLabel } = useExam()
+const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, clearProgress, modeLabel } = useExam()
 </script>
