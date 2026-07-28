@@ -27,9 +27,12 @@
       <div class="review-heading"><div><h2>Разбор ответов</h2><p v-if="quiz.length">Раскрой вопрос, чтобы увидеть все варианты и объяснение.</p></div><span v-if="quiz.length">{{ sessionScore }} верно · {{ resultTotal - sessionScore }} ошибок</span></div>
       <div v-if="quiz.length" class="review-list">
         <details v-for="(question, questionIndex) in quiz" :key="question.id" class="review-question">
-          <summary>
+          <summary :class="{ 'no-favorite': mode === 'favorites' }">
             <span class="review-status" :class="{ correct: answers[questionIndex] === question.correct, wrong: answers[questionIndex] !== question.correct }"><Check v-if="answers[questionIndex] === question.correct" :size="16" /><X v-else :size="16" /></span>
             <span><small>{{ sections[question.section].label }}</small><strong>{{ question.text }}</strong></span>
+            <button v-if="mode !== 'favorites'" class="review-favorite" :class="{ active: favorites.includes(question.id) }" @click.stop.prevent="$emit('toggle-favorite', question.id)" :title="favorites.includes(question.id) ? 'Убрать из избранного' : 'Добавить в избранное'">
+              <Star :size="17" :fill="favorites.includes(question.id) ? 'currentColor' : 'none'" />
+            </button>
             <ChevronRight :size="18" />
           </summary>
           <div class="review-details">
@@ -52,11 +55,11 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Check, ChevronRight, History, MousePointer2, RotateCcw, Target, Trophy, X } from 'lucide-vue-next'
+import { Check, ChevronRight, History, MousePointer2, RotateCcw, Star, Target, Trophy, X } from 'lucide-vue-next'
 import { sections } from '../questions'
 
-const props = defineProps({ sessionScore: Number, resultTotal: Number, quiz: Array, answers: Array, examGrade: Number, isExam: Boolean, isHistoryReview: Boolean, resultsBySection: Array, wrongQuestions: Array })
-defineEmits(['mistakes', 'home'])
+const props = defineProps({ sessionScore: Number, resultTotal: Number, quiz: Array, answers: Array, examGrade: Number, isExam: Boolean, isHistoryReview: Boolean, mode: String, resultsBySection: Array, wrongQuestions: Array, favorites: { type: Array, default: () => [] } })
+defineEmits(['mistakes', 'home', 'toggle-favorite'])
 
 const summary = computed(() => props.sessionScore / props.resultTotal >= .8
   ? 'Отличный результат. Основные темы уже держатся уверенно.'
@@ -64,3 +67,11 @@ const summary = computed(() => props.sessionScore / props.resultTotal >= .8
     ? 'Хорошая база. Разбор ошибок поможет быстро поднять результат.'
     : 'Диагностика сработала: теперь понятно, что повторять в первую очередь.')
 </script>
+
+<style scoped>
+.review-question summary { grid-template-columns: 32px 1fr 34px 20px; }
+.review-question summary.no-favorite { grid-template-columns: 32px 1fr 20px; }
+.review-favorite { width: 32px; height: 32px; border: 0; border-radius: 4px; background: transparent; color: #85908c; display: grid; place-items: center; cursor: pointer; }
+.review-favorite:hover, .review-favorite.active { color: #a47b18; background: #fff6d9; }
+@media (max-width: 760px) { .review-question summary { grid-template-columns: 28px 1fr 32px 18px; }.review-question summary.no-favorite { grid-template-columns: 28px 1fr 18px; } }
+</style>

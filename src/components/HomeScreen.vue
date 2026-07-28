@@ -31,7 +31,7 @@
 
       <div class="section-heading"><div><p class="step">02</p><h2>Режим тренировки</h2></div><span>Ответы сохраняются на устройстве</span></div>
       <div class="mode-grid">
-        <button v-for="item in modes" :key="item.id" class="mode-card" :class="{ active: mode === item.id }" @click="$emit('update:mode', item.id)">
+        <button v-for="item in modes" :key="item.id" class="mode-card" :class="{ active: mode === item.id }" :disabled="item.id === 'favorites' && !item.count" @click="$emit('update:mode', item.id)">
           <span class="mode-icon"><component :is="item.icon" :size="22" /></span>
           <span class="mode-copy"><strong>{{ item.title }}</strong><small>{{ item.note }}</small></span>
           <span class="count">{{ item.count }}</span>
@@ -46,7 +46,7 @@
       </div>
 
       <div class="actions">
-        <button class="primary" @click="$emit('start')">Начать тест <ArrowRight :size="19" /></button>
+        <button class="primary" :disabled="mode === 'favorites' && !progress.favorites.length" @click="$emit('start')">Начать тест <ArrowRight :size="19" /></button>
         <button class="secondary" @click="$emit('catalog')"><LibraryBig :size="18" /> Справочник вопросов</button>
         <button v-if="progress.activeQuiz" class="secondary" @click="$emit('resume')"><Clock3 :size="18" /> Продолжить тест</button>
         <button v-if="progress.mistakes.length" class="secondary" @click="$emit('mistakes')"><RotateCcw :size="18" /> Повторить ошибки <b>{{ progress.mistakes.length }}</b></button>
@@ -63,6 +63,7 @@
             <option value="thematic">По теме</option>
             <option value="exam">Симуляция</option>
             <option value="mistakes">Работа над ошибками</option>
+            <option value="favorites">Избранное</option>
           </select>
         </label>
         <span>{{ filteredHistory.length }} {{ filteredHistory.length === 1 ? 'результат' : 'результатов' }}</span>

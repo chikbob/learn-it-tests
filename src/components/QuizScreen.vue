@@ -5,7 +5,12 @@
       <div class="quiz-progress"><div><span>{{ modeLabel(mode) }}</span><b>{{ index + 1 }} / {{ quizLength }}</b></div><div class="meter"><span :style="{ width: ((index + 1) / quizLength * 100) + '%' }"></span></div></div>
     </div>
     <article class="question-card">
-      <div class="question-meta"><span :style="{ color: sections[current.section].color }">{{ sections[current.section].label }}</span><i>{{ difficultyLabels[current.difficulty] }}</i></div>
+      <div class="question-meta">
+        <span :style="{ color: sections[current.section].color }">{{ sections[current.section].label }}</span><i>{{ difficultyLabels[current.difficulty] }}</i>
+        <button v-if="mode !== 'favorites'" class="favorite-button" :class="{ active: isFavorite }" @click="$emit('toggle-favorite', current.id)" :title="isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'">
+          <Star :size="20" :fill="isFavorite ? 'currentColor' : 'none'" />
+        </button>
+      </div>
       <h2>{{ current.text }}</h2>
       <pre v-if="current.code"><code>{{ current.code }}</code></pre>
       <div class="options">
@@ -27,9 +32,14 @@
 </template>
 
 <script setup>
-import { ArrowLeft, Check, ChevronRight, CircleAlert, X } from 'lucide-vue-next'
+import { ArrowLeft, Check, ChevronRight, CircleAlert, Star, X } from 'lucide-vue-next'
 import { difficultyLabels, sections } from '../questions'
 
-defineProps({ current: Object, index: Number, quizLength: Number, mode: String, selected: Number, answered: Boolean, isCorrect: Boolean, isExam: Boolean, modeLabel: Function })
-defineEmits(['home', 'choose', 'confirm', 'next'])
+defineProps({ current: Object, index: Number, quizLength: Number, mode: String, selected: Number, answered: Boolean, isCorrect: Boolean, isExam: Boolean, isFavorite: Boolean, modeLabel: Function })
+defineEmits(['home', 'choose', 'confirm', 'next', 'toggle-favorite'])
 </script>
+
+<style scoped>
+.favorite-button { width: 36px; height: 36px; margin-left: auto; border: 1px solid #d8ded9; border-radius: 5px; background: #fff; color: #7a8581; display: grid; place-items: center; cursor: pointer; }
+.favorite-button:hover, .favorite-button.active { color: #a47b18; border-color: #d9b650; background: #fff9e7; }
+</style>

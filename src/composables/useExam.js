@@ -1,9 +1,9 @@
 import { computed, ref } from 'vue'
-import { BookOpen, Clock3, Target } from 'lucide-vue-next'
+import { BookOpen, Clock3, Star, Target } from 'lucide-vue-next'
 import { questions, sections } from '../questions'
 import { supabase } from '../lib/supabase'
 
-const emptyProgress = () => ({ sessions: 0, correct: 0, total: 0, mistakes: [], mastery: {}, history: [], activeQuiz: null })
+const emptyProgress = () => ({ sessions: 0, correct: 0, total: 0, mistakes: [], favorites: [], mastery: {}, history: [], activeQuiz: null })
 
 export function useExam(initialUserId = null) {
   let userId = initialUserId
@@ -24,11 +24,12 @@ export function useExam(initialUserId = null) {
     localStorage.setItem(progressKey(), JSON.stringify(progress.value))
   }
 
-  const modes = [
+  const modes = computed(() => [
     { id: 'diagnostic', icon: Target, title: 'Диагностика', note: 'Все разделы, разбор после ответа', count: 30 },
     { id: 'thematic', icon: BookOpen, title: 'По теме', note: '15 вопросов только выбранной темы', count: 15 },
     { id: 'exam', icon: Clock3, title: 'Симуляция', note: '30 вопросов, результат по шкале 1–100', count: 30 },
-  ]
+    { id: 'favorites', icon: Star, title: 'Избранное', note: 'Тест по вопросам, отмеченным звездочкой', count: progress.value.favorites.length },
+  ])
 
   const availableSections = computed(() => Object.entries(sections).filter(([key]) => track.value === 'security' || key !== 'security'))
   const current = computed(() => quiz.value[index.value])
@@ -111,10 +112,14 @@ export function useExam(initialUserId = null) {
     reviewSession.value = null
     mode.value = kind
     let pool = questions.filter(question => track.value === 'security' || question.section !== 'security')
-    let count = modes.find(item => item.id === kind)?.count || 12
+    let count = modes.value.find(item => item.id === kind)?.count || 12
     if (kind === 'thematic') pool = pool.filter(question => question.section === selectedSection.value)
     if (kind === 'mistakes') {
       pool = questions.filter(question => progress.value.mistakes.includes(question.id))
+      count = pool.length
+    }
+    if (kind === 'favorites') {
+      pool = questions.filter(question => progress.value.favorites.includes(question.id))
       count = pool.length
     }
     if (kind === 'exam' || kind === 'diagnostic') {
@@ -187,6 +192,7 @@ export function useExam(initialUserId = null) {
       correct: progress.value.correct + sessionScore.value,
       total: progress.value.total + quiz.value.length,
       mistakes: remainingMistakes,
+      favorites: [...progress.value.favorites],
       mastery,
       history: [{ id: attemptId, date: new Date().toISOString(), mode: completedMode, track: track.value, topic: completedMode === 'thematic' ? selectedSection.value : null, score: sessionScore.value, grade: completedMode === 'exam' ? completedGrade : null, total: quiz.value.length, sections: sectionResults, questionIds: quiz.value.map(question => question.id), answers: [...answers.value] }, ...progress.value.history].slice(0, 50),
       activeQuiz: null,
@@ -217,6 +223,14 @@ export function useExam(initialUserId = null) {
     if (value === 'it' && selectedSection.value === 'security') selectedSection.value = 'networks'
   }
 
+  function toggleFavorite(questionId) {
+    const favorites = new Set(progress.value.favorites)
+    if (favorites.has(questionId)) favorites.delete(questionId)
+    else favorites.add(questionId)
+    progress.value.favorites = [...favorites]
+    persist()
+  }
+
   async function setUser(nextUserId) {
     userId = nextUserId
     quiz.value = []
@@ -245,15 +259,16 @@ export function useExam(initialUserId = null) {
 
   function clearProgress() {
     if (!window.confirm('Удалить историю, результаты и журнал ошибок?')) return
-    progress.value = emptyProgress()
+    const favorites = [...progress.value.favorites]
+    progress.value = { ...emptyProgress(), favorites }
     localStorage.removeItem(progressKey())
     persist()
     screen.value = 'home'
   }
 
   function modeLabel(id) {
-    return modes.find(item => item.id === id)?.title || 'Работа над ошибками'
+    return modes.value.find(item => item.id === id)?.title || 'Работа над ошибками'
   }
 
-  return { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, modeLabel }
+  return { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel }
 }

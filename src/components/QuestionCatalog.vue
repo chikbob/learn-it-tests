@@ -20,6 +20,9 @@
         <summary>
           <span class="catalog-number">{{ question.id }}</span>
           <span><small :style="{ color: sections[question.section].color }">{{ sections[question.section].label }} · {{ difficultyLabels[question.difficulty] }}</small><strong>{{ question.text }}</strong></span>
+          <button class="catalog-favorite" :class="{ active: favorites.includes(question.id) }" @click.stop.prevent="$emit('toggle-favorite', question.id)" :title="favorites.includes(question.id) ? 'Убрать из избранного' : 'Добавить в избранное'">
+            <Star :size="18" :fill="favorites.includes(question.id) ? 'currentColor' : 'none'" />
+          </button>
           <ChevronRight :size="18" />
         </summary>
         <div class="catalog-answer">
@@ -35,10 +38,11 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { ArrowLeft, ChevronRight, LibraryBig, Search } from 'lucide-vue-next'
+import { ArrowLeft, ChevronRight, LibraryBig, Search, Star } from 'lucide-vue-next'
 import { difficultyLabels, questions, sections } from '../questions'
 
-defineEmits(['home'])
+defineProps({ favorites: { type: Array, default: () => [] } })
+defineEmits(['home', 'toggle-favorite'])
 
 const search = ref('')
 const sectionFilter = ref('all')
@@ -51,3 +55,10 @@ const filteredQuestions = computed(() => {
   })
 })
 </script>
+
+<style scoped>
+.catalog-question summary { grid-template-columns: 38px 1fr 38px 20px; }
+.catalog-favorite { width: 34px; height: 34px; border: 0; border-radius: 4px; background: transparent; color: #85908c; display: grid; place-items: center; cursor: pointer; }
+.catalog-favorite:hover, .catalog-favorite.active { color: #a47b18; background: #fff6d9; }
+@media (max-width: 760px) { .catalog-question summary { grid-template-columns: 34px 1fr 34px 18px; } }
+</style>

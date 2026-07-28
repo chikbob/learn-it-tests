@@ -27,7 +27,7 @@
       @logout="handleLogout"
     />
     <LeaderboardScreen v-else-if="screen === 'leaderboard'" :players="leaderboard" :current-user="currentUser" @home="goHome" />
-    <ProfileScreen v-else-if="screen === 'profile'" :user="currentUser" :update-password="updatePassword" @home="goHome" />
+    <ProfileScreen v-else-if="screen === 'profile'" :user="currentUser" :password-recovery="passwordRecovery" :request-password-reset="requestPasswordReset" :update-password="updatePassword" @home="goHome" />
     <QuizScreen
       v-else-if="screen === 'quiz' && current"
       :current="current"
@@ -38,13 +38,15 @@
       :answered="answered"
       :is-correct="isCorrect"
       :is-exam="isExam"
+      :is-favorite="progress.favorites.includes(current.id)"
       :mode-label="modeLabel"
       @home="goHome"
       @choose="choose"
       @confirm="confirm"
       @next="next"
+      @toggle-favorite="toggleFavorite"
     />
-    <QuestionCatalog v-else-if="screen === 'catalog'" @home="goHome" />
+    <QuestionCatalog v-else-if="screen === 'catalog'" :favorites="progress.favorites" @toggle-favorite="toggleFavorite" @home="goHome" />
     <ResultsScreen
       v-else
       :session-score="sessionScore"
@@ -54,9 +56,12 @@
       :exam-grade="examGrade"
       :is-exam="isExam"
       :is-history-review="Boolean(reviewSession)"
+      :mode="mode"
       :results-by-section="resultsBySection"
       :wrong-questions="wrongQuestions"
+      :favorites="progress.favorites"
       @mistakes="startQuiz('mistakes')"
+      @toggle-favorite="toggleFavorite"
       @home="goHome"
     />
   </div>
@@ -73,11 +78,14 @@ import ResultsScreen from './components/ResultsScreen.vue'
 import { useExam } from './composables/useExam'
 import { useAuth } from './composables/useAuth'
 
-const { currentUser, leaderboard, loading: authLoading, initialize, register, login, logout, refreshLeaderboard, updatePassword } = useAuth()
-const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, modeLabel } = useExam(currentUser.value?.id)
+const { currentUser, leaderboard, loading: authLoading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, requestPasswordReset, updatePassword } = useAuth()
+const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel } = useExam(currentUser.value?.id)
 
 initialize().then(() => {
-  if (currentUser.value) setUser(currentUser.value.id)
+  if (currentUser.value) {
+    setUser(currentUser.value.id)
+    if (passwordRecovery.value) screen.value = 'profile'
+  }
 })
 
 function handleAuthenticated(account) {

@@ -12,12 +12,14 @@
         <small><Cloud :size="14" /> Прогресс синхронизируется</small>
       </div>
       <form class="password-form" @submit.prevent="submit">
-        <div><p class="step">Безопасность</p><h2>Изменить пароль</h2><p>После изменения используй новый пароль на всех устройствах.</p></div>
-        <label>Новый пароль<input v-model="password" type="password" autocomplete="new-password" minlength="6" placeholder="Минимум 6 символов" required /></label>
-        <label>Повторите пароль<input v-model="confirmation" type="password" autocomplete="new-password" minlength="6" placeholder="Введите пароль еще раз" required /></label>
+        <div><p class="step">Безопасность</p><h2>{{ passwordRecovery ? 'Задайте новый пароль' : 'Изменить пароль' }}</h2><p>{{ passwordRecovery ? 'Ссылка подтверждена. Новый пароль заменит текущий на всех устройствах.' : 'Мы отправим защищенную ссылку на почту аккаунта.' }}</p></div>
+        <template v-if="passwordRecovery">
+          <label>Новый пароль<input v-model="password" type="password" autocomplete="new-password" minlength="6" placeholder="Минимум 6 символов" required /></label>
+          <label>Повторите пароль<input v-model="confirmation" type="password" autocomplete="new-password" minlength="6" placeholder="Введите пароль еще раз" required /></label>
+        </template>
         <p v-if="error" class="profile-message error"><CircleAlert :size="16" /> {{ error }}</p>
-        <p v-if="success" class="profile-message success"><CircleCheck :size="16" /> Пароль успешно изменен</p>
-        <button class="primary" :disabled="loading">{{ loading ? 'Сохраняем…' : 'Сохранить пароль' }} <KeyRound v-if="!loading" :size="17" /></button>
+        <p v-if="successMessage" class="profile-message success"><CircleCheck :size="16" /> {{ successMessage }}</p>
+        <button class="primary" :disabled="loading || Boolean(successMessage)">{{ loading ? 'Подождите…' : passwordRecovery ? 'Сохранить пароль' : 'Отправить ссылку' }} <Mail v-if="!loading && !passwordRecovery" :size="17" /><KeyRound v-else-if="!loading" :size="17" /></button>
       </form>
     </section>
   </main>
@@ -25,29 +27,31 @@
 
 <script setup>
 import { ref } from 'vue'
-import { ArrowLeft, CircleAlert, CircleCheck, Cloud, KeyRound, UserRound } from 'lucide-vue-next'
+import { ArrowLeft, CircleAlert, CircleCheck, Cloud, KeyRound, Mail, UserRound } from 'lucide-vue-next'
 
-const props = defineProps({ user: Object, updatePassword: Function })
+const props = defineProps({ user: Object, passwordRecovery: Boolean, requestPasswordReset: Function, updatePassword: Function })
 defineEmits(['home'])
 const password = ref('')
 const confirmation = ref('')
 const loading = ref(false)
 const error = ref('')
-const success = ref(false)
+const successMessage = ref('')
 
 async function submit() {
   error.value = ''
-  success.value = false
-  if (password.value !== confirmation.value) {
+  successMessage.value = ''
+  if (props.passwordRecovery && password.value !== confirmation.value) {
     error.value = 'Пароли не совпадают'
     return
   }
   loading.value = true
   try {
-    await props.updatePassword(password.value)
+    const wasRecovery = props.passwordRecovery
+    if (wasRecovery) await props.updatePassword(password.value)
+    else await props.requestPasswordReset(props.user.email)
     password.value = ''
     confirmation.value = ''
-    success.value = true
+    successMessage.value = wasRecovery ? 'Пароль успешно изменен' : 'Письмо отправлено. Проверьте входящие и папку «Спам».'
   } catch (reason) {
     error.value = reason.message
   } finally {

@@ -5,6 +5,7 @@ export function useAuth() {
   const currentUser = ref(null)
   const leaderboard = ref([])
   const loading = ref(true)
+  const passwordRecovery = ref(new URLSearchParams(window.location.search).has('reset_password'))
   const isAuthenticated = computed(() => Boolean(currentUser.value))
 
   async function loadProfile(user) {
@@ -76,6 +77,13 @@ export function useAuth() {
     currentUser.value = null
   }
 
+  async function requestPasswordReset(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/?reset_password=1`,
+    })
+    if (error) throw new Error(error.message)
+  }
+
   async function refreshLeaderboard() {
     const { data, error } = await supabase.from('leaderboard').select('user_id, display_name, average_grade, simulation_count').gt('simulation_count', 0).order('average_grade', { ascending: false }).order('simulation_count', { ascending: false }).limit(100)
     if (error) throw new Error('Не удалось загрузить таблицу лидеров')
@@ -86,7 +94,9 @@ export function useAuth() {
     if (password.length < 6) throw new Error('Пароль должен содержать минимум 6 символов')
     const { error } = await supabase.auth.updateUser({ password })
     if (error) throw new Error(error.message)
+    passwordRecovery.value = false
+    window.history.replaceState({}, document.title, window.location.pathname)
   }
 
-  return { currentUser, isAuthenticated, leaderboard, loading, initialize, register, login, logout, refreshLeaderboard, updatePassword }
+  return { currentUser, isAuthenticated, leaderboard, loading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, requestPasswordReset, updatePassword }
 }

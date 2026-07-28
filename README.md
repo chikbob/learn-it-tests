@@ -6,7 +6,7 @@
 
 [![Vue 3](https://img.shields.io/badge/Vue-3.5-42b883?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
 [![Vite](https://img.shields.io/badge/Vite-6.0-646cff?logo=vite&logoColor=white)](https://vite.dev/)
-[![Questions](https://img.shields.io/badge/вопросов-144-247a70)](./src/questions.js)
+[![Questions](https://img.shields.io/badge/вопросов-774-247a70)](./src/questions.js)
 [![Exam](https://img.shields.io/badge/симуляция-30_вопросов-e4b94f)](#возможности)
 
 Тренажер по программе вступительного экзамена для направлений  
@@ -23,6 +23,7 @@
 - **Симуляция экзамена** — 30 вопросов без подсказок и оценка по шкале от 1 до 100.
 - **Работа над ошибками** — вопрос считается усвоенным после двух успешных повторов.
 - **Справочник** — все вопросы с поиском, фильтрами, ответами и объяснениями.
+- **Избранное** — вопросы можно отметить звездочкой и пройти отдельным тестом; список синхронизируется между устройствами.
 - **История прохождений** — результаты и незавершенный тест сохраняются в браузере.
 - **Аккаунты Supabase** — история, прогресс и ошибки синхронизируются между устройствами.
 - **Общая таблица лидеров** — рейтинг по среднему баллу всех симуляций.
@@ -92,6 +93,8 @@ npm run preview
 
 Шаблон письма находится в [`supabase/email-confirmation.html`](./supabase/email-confirmation.html). Вставьте его в **Authentication → Emails → Templates → Confirm signup**, а в поле Subject укажите `Подтвердите регистрацию в LearnIT Tests`. Ссылка подтверждения возвращается на домен приложения, чтобы пользователю не требовался прямой доступ к `supabase.co`.
 
+Для смены пароля вставьте [`supabase/password-recovery.html`](./supabase/password-recovery.html) в **Authentication → Emails → Templates → Reset password**, а в Subject укажите `Смена пароля в LearnIT Tests`. Пользователь сможет задать новый пароль только после перехода по ссылке из письма.
+
 ## Структура проекта
 
 ```text
@@ -108,7 +111,8 @@ src/
 │   └── useExam.js           # логика тестов и синхронизация прогресса
 ├── lib/supabase.js          # клиент Supabase
 ├── App.vue                  # переключение экранов
-├── questions.js             # банк вопросов
+├── questions.js             # основной банк вопросов
+├── generatedQuestions.js    # 600 дополнительных заданий
 └── style.css                # общие стили
 ```
 
