@@ -13,12 +13,11 @@
       </div>
       <p v-if="!players.length" class="empty-state">Завершите первый тест, чтобы появиться в рейтинге.</p>
     </section>
-    <p class="leaderboard-note"><Info :size="15" /> Средний балл сохраняется в Supabase и не удаляется при очистке истории.</p>
   </main>
 </template>
 
 <script setup>
-import { ArrowLeft, Info, Trophy } from 'lucide-vue-next'
+import { ArrowLeft, Trophy } from 'lucide-vue-next'
 
 defineProps({ players: Array, currentUser: Object })
 defineEmits(['home'])

@@ -1,6 +1,6 @@
 <template>
   <div class="app-shell">
-    <main v-if="authLoading" class="loading-page"><span></span><p>Загружаем аккаунт…</p></main>
+    <main v-if="authLoading || (currentUser && !progressReady)" class="loading-page"><span></span><p>{{ authLoading ? 'Загружаем аккаунт…' : 'Синхронизируем прогресс…' }}</p></main>
     <AuthScreen v-else-if="!currentUser" :login="login" :register="register" @authenticated="handleAuthenticated" />
     <HomeScreen
       v-else-if="screen === 'home'"
@@ -27,7 +27,7 @@
       @logout="handleLogout"
     />
     <LeaderboardScreen v-else-if="screen === 'leaderboard'" :players="leaderboard" :current-user="currentUser" @home="goHome" />
-    <ProfileScreen v-else-if="screen === 'profile'" :user="currentUser" :password-recovery="passwordRecovery" :request-password-reset="requestPasswordReset" :update-password="updatePassword" @home="goHome" />
+    <ProfileScreen v-else-if="screen === 'profile'" :user="currentUser" :progress="progress" :total-accuracy="totalAccuracy" :password-recovery="passwordRecovery" :request-password-reset="requestPasswordReset" :update-password="updatePassword" @home="goHome" />
     <QuizScreen
       v-else-if="screen === 'quiz' && current"
       :current="current"
@@ -79,17 +79,17 @@ import { useExam } from './composables/useExam'
 import { useAuth } from './composables/useAuth'
 
 const { currentUser, leaderboard, loading: authLoading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, requestPasswordReset, updatePassword } = useAuth()
-const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel } = useExam(currentUser.value?.id)
+const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel } = useExam(currentUser.value?.id)
 
-initialize().then(() => {
+initialize().then(async () => {
   if (currentUser.value) {
-    setUser(currentUser.value.id)
+    await setUser(currentUser.value.id)
     if (passwordRecovery.value) screen.value = 'profile'
   }
 })
 
-function handleAuthenticated(account) {
-  setUser(account.id)
+async function handleAuthenticated(account) {
+  await setUser(account.id)
 }
 
 async function handleLogout() {

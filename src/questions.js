@@ -14,7 +14,7 @@ const q = (id, section, difficulty, text, options, correct, explanation, code = 
   id, section, difficulty, text, options, correct, explanation, code
 })
 
-export const questions = [
+const questionBank = [
   q(1, 'networks', 'surface', 'На каком уровне модели OSI работает IP?', ['Физическом', 'Канальном', 'Сетевом', 'Транспортном'], 2, 'IP отвечает за логическую адресацию и маршрутизацию на сетевом уровне.'),
   q(2, 'networks', 'understanding', 'Какое устройство пересылает кадры по MAC-адресам внутри локальной сети?', ['Маршрутизатор', 'Коммутатор', 'Повторитель', 'Модем'], 1, 'Коммутатор работает преимущественно на канальном уровне и использует таблицу MAC-адресов.'),
   q(3, 'networks', 'application', 'Сколько адресов узлов доступно в обычной IPv4-подсети /27?', ['14', '30', '32', '62'], 1, 'Остается 5 бит для узлов: 2^5 = 32 адреса, минус адрес сети и broadcast = 30.'),
@@ -191,6 +191,20 @@ export const questions = [
   q(174, 'networks', 'understanding', 'На каком уровне OSI работают TCP и UDP?', ['Канальном', 'Сетевом', 'Транспортном', 'Прикладном'], 2, 'TCP и UDP являются транспортными протоколами четвертого уровня OSI.'),
   ...generatedQuestions,
 ]
+
+const normalizedQuestionKey = question => `${question.text}\n${question.code || ''}`
+  .toLocaleLowerCase('ru')
+  .replaceAll('ё', 'е')
+  .replace(/[^a-zа-я0-9]+/gi, ' ')
+  .trim()
+
+const seenQuestions = new Set()
+export const questions = questionBank.filter(question => {
+  const key = normalizedQuestionKey(question)
+  if (seenQuestions.has(key)) return false
+  seenQuestions.add(key)
+  return true
+})
 
 export const difficultyLabels = {
   surface: 'Термин', understanding: 'Понимание', application: 'Практика', trick: 'С подвохом'

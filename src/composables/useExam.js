@@ -16,6 +16,7 @@ export function useExam(initialUserId = null) {
   const selected = ref(null)
   const answers = ref([])
   const reviewSession = ref(null)
+  const progressReady = ref(false)
   const progressKey = () => userId ? `learnit-progress:${userId}` : 'learnit-progress'
   const stored = JSON.parse(localStorage.getItem(progressKey()) || 'null')
   const progress = ref({ ...emptyProgress(), ...(stored || {}) })
@@ -232,6 +233,7 @@ export function useExam(initialUserId = null) {
   }
 
   async function setUser(nextUserId) {
+    progressReady.value = false
     userId = nextUserId
     quiz.value = []
     answers.value = []
@@ -244,16 +246,23 @@ export function useExam(initialUserId = null) {
       localStorage.removeItem('learnit-progress')
     }
     progress.value = { ...emptyProgress(), ...(saved ? JSON.parse(saved) : {}) }
-    screen.value = 'home'
-    if (nextUserId) {
-      const { data, error } = await supabase.from('progress').select('data').eq('user_id', nextUserId).single()
-      if (!error && data?.data) {
-        const remote = { ...emptyProgress(), ...data.data }
-        if ((remote.sessions || 0) >= progress.value.sessions) {
-          progress.value = remote
-          localStorage.setItem(userKey, JSON.stringify(progress.value))
-        } else persist()
+    try {
+      if (nextUserId) {
+        const { data, error } = await supabase.from('progress').select('data').eq('user_id', nextUserId).single()
+        if (error && error.code !== 'PGRST116') throw error
+        if (data?.data) {
+          const remote = { ...emptyProgress(), ...data.data }
+          if ((remote.sessions || 0) >= progress.value.sessions) {
+            progress.value = remote
+            localStorage.setItem(userKey, JSON.stringify(progress.value))
+          } else persist()
+        }
       }
+    } catch (error) {
+      console.error('Progress sync failed:', error.message)
+    } finally {
+      screen.value = 'home'
+      progressReady.value = true
     }
   }
 
@@ -270,5 +279,5 @@ export function useExam(initialUserId = null) {
     return modes.value.find(item => item.id === id)?.title || 'Работа над ошибками'
   }
 
-  return { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel }
+  return { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel }
 }
