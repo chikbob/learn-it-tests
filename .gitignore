@@ -4,3 +4,5 @@ dist/
 *.log
 .idea/
 *.iml
+.migration-*.sql
+supabase/.temp/
