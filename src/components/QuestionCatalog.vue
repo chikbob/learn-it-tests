@@ -14,6 +14,11 @@
         <option value="all">Любая сложность</option>
         <option v-for="(label, key) in difficultyLabels" :key="key" :value="key">{{ label }}</option>
       </select>
+      <label class="favorites-filter" :class="{ active: favoritesOnly }">
+        <input v-model="favoritesOnly" type="checkbox" />
+        <Star :size="17" :fill="favoritesOnly ? 'currentColor' : 'none'" />
+        Только избранные <b>{{ favorites.length }}</b>
+      </label>
     </div>
     <div class="catalog-list">
       <details v-for="question in filteredQuestions" :key="question.id" class="catalog-question">
@@ -41,22 +46,28 @@ import { computed, ref } from 'vue'
 import { ArrowLeft, ChevronRight, LibraryBig, Search, Star } from 'lucide-vue-next'
 import { difficultyLabels, questions, sections } from '../questions'
 
-defineProps({ favorites: { type: Array, default: () => [] } })
+const props = defineProps({ favorites: { type: Array, default: () => [] } })
 defineEmits(['home', 'toggle-favorite'])
 
 const search = ref('')
 const sectionFilter = ref('all')
 const difficultyFilter = ref('all')
+const favoritesOnly = ref(false)
 const filteredQuestions = computed(() => {
   const needle = search.value.trim().toLocaleLowerCase('ru')
   return questions.filter(question => {
     const matchesSearch = !needle || [question.text, question.explanation, ...question.options].join(' ').toLocaleLowerCase('ru').includes(needle)
-    return matchesSearch && (sectionFilter.value === 'all' || question.section === sectionFilter.value) && (difficultyFilter.value === 'all' || question.difficulty === difficultyFilter.value)
+    const matchesFavorite = !favoritesOnly.value || props.favorites.includes(question.id)
+    return matchesSearch && matchesFavorite && (sectionFilter.value === 'all' || question.section === sectionFilter.value) && (difficultyFilter.value === 'all' || question.difficulty === difficultyFilter.value)
   })
 })
 </script>
 
 <style scoped>
+.favorites-filter { height: 46px; padding: 0 12px; border: 1px solid #d3dad5; border-radius: 5px; background: white; color: #59645f; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.favorites-filter input { position: absolute; opacity: 0; pointer-events: none; }
+.favorites-filter b { min-width: 23px; height: 23px; margin-left: auto; border-radius: 50%; background: #edf0ed; display: grid; place-items: center; font-size: 10px; }
+.favorites-filter.active { color: #8a6812; border-color: #d9b650; background: #fff9e7; }
 .catalog-question summary { grid-template-columns: 38px 1fr 38px 20px; }
 .catalog-favorite { width: 34px; height: 34px; border: 0; border-radius: 4px; background: transparent; color: #85908c; display: grid; place-items: center; cursor: pointer; }
 .catalog-favorite:hover, .catalog-favorite.active { color: #a47b18; background: #fff6d9; }
