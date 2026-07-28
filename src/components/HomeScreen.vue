@@ -3,9 +3,12 @@
     <div class="user-bar">
       <span class="user-avatar">{{ user.name.slice(0, 1).toUpperCase() }}</span>
       <span><small>Аккаунт</small><strong>{{ user.name }}</strong></span>
-      <button class="secondary" @click="$emit('profile')"><UserRound :size="17" /> Профиль</button>
-      <button class="secondary" @click="$emit('leaderboard')"><Trophy :size="17" /> Лидеры</button>
-      <button class="icon-button" @click="$emit('logout')" title="Выйти из аккаунта"><LogOut :size="18" /></button>
+      <div class="user-actions">
+        <button v-if="user.isAdmin" class="top-action admin" @click="$emit('admin')" title="Админ-панель"><Settings :size="18" /><span>Админ</span></button>
+        <button class="top-action" @click="$emit('profile')" title="Профиль"><UserRound :size="18" /><span>Профиль</span></button>
+        <button class="top-action" @click="$emit('leaderboard')" title="Таблица лидеров"><Trophy :size="18" /><span>Лидеры</span></button>
+        <button class="top-action logout" @click="$emit('logout')" title="Выйти из аккаунта"><LogOut :size="18" /></button>
+      </div>
     </div>
     <section class="intro">
       <div>
@@ -83,11 +86,11 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { ArrowRight, BookOpen, ChevronRight, Clock3, History, LibraryBig, LogOut, RotateCcw, ShieldCheck, Sparkles, Trash2, Trophy, UserRound } from 'lucide-vue-next'
+import { ArrowRight, BookOpen, ChevronRight, Clock3, History, LibraryBig, LogOut, RotateCcw, Settings, ShieldCheck, Sparkles, Trash2, Trophy, UserRound } from 'lucide-vue-next'
 import { sections } from '../questions'
 
 const props = defineProps({ user: Object, progress: Object, totalAccuracy: Number, modes: Array, track: String, mode: String, selectedSection: String, availableSections: Array, modeLabel: Function })
-defineEmits(['update:track', 'update:mode', 'update:selectedSection', 'start', 'resume', 'mistakes', 'catalog', 'clear', 'review', 'leaderboard', 'profile', 'logout'])
+defineEmits(['update:track', 'update:mode', 'update:selectedSection', 'start', 'resume', 'mistakes', 'catalog', 'clear', 'review', 'leaderboard', 'profile', 'admin', 'logout'])
 
 const historyMode = ref('all')
 const filteredHistory = computed(() => props.progress.history.filter(session => historyMode.value === 'all' || session.mode === historyMode.value))
@@ -96,3 +99,15 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 }
 </script>
+
+<style scoped>
+.user-actions { display: flex; align-items: center; gap: 7px; }
+.top-action { min-height: 38px; padding: 0 12px; border: 1px solid #bbc7c2; border-radius: 5px; background: transparent; color: #173f3a; display: inline-flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; font-size: 12px; font-weight: 800; }.top-action:hover { background: #edf3f1; }.top-action.admin { color: #80610f; border-color: #d9c47f; }.top-action.logout { width: 38px; padding: 0; color: #8d413b; border-color: #d8c7c3; }
+@media (max-width: 760px) {
+  .user-bar { display: grid; grid-template-columns: 38px minmax(60px,1fr) auto; gap: 10px; }
+  .user-actions { gap: 4px; padding: 3px; border: 1px solid #d5ddd8; border-radius: 6px; background: #fff; }
+  .top-action { width: 36px; height: 36px; min-height: 36px; padding: 0; border: 0; border-radius: 4px; }
+  .top-action span { display: none; }
+  .top-action.admin,.top-action.logout { width: 36px; border: 0; }
+}
+</style>

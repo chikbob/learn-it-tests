@@ -1,4 +1,4 @@
-const CACHE = 'learnit-shell-v2'
+const CACHE = 'learnit-shell-v3'
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(['/', '/manifest.webmanifest'])))

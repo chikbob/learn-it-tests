@@ -13,9 +13,9 @@ export function useAuth() {
       currentUser.value = null
       return null
     }
-    const { data, error } = await supabase.from('profiles').select('id, display_name').eq('id', user.id).single()
+    const { data, error } = await supabase.from('profiles').select('id, display_name, role').eq('id', user.id).single()
     if (error) throw new Error('Не удалось загрузить профиль. Проверьте настройку базы данных.')
-    currentUser.value = { id: data.id, name: data.display_name, email: user.email }
+    currentUser.value = { id: data.id, name: data.display_name, email: user.email, role: data.role || 'user', isAdmin: data.role === 'admin' }
     return currentUser.value
   }
 
@@ -90,6 +90,13 @@ export function useAuth() {
     leaderboard.value = data.map(row => ({ id: row.user_id, name: row.display_name, averageGrade: row.average_grade, simulationCount: row.simulation_count }))
   }
 
+  async function loadAdminUsers() {
+    if (!currentUser.value?.isAdmin) throw new Error('Недостаточно прав')
+    const { data, error } = await supabase.rpc('get_admin_users')
+    if (error) throw new Error('Не удалось загрузить данные админ-панели')
+    return data
+  }
+
   async function updatePassword(password) {
     if (password.length < 6) throw new Error('Пароль должен содержать минимум 6 символов')
     const { error } = await supabase.auth.updateUser({ password })
@@ -98,5 +105,5 @@ export function useAuth() {
     window.history.replaceState({}, document.title, window.location.pathname)
   }
 
-  return { currentUser, isAuthenticated, leaderboard, loading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, requestPasswordReset, updatePassword }
+  return { currentUser, isAuthenticated, leaderboard, loading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, loadAdminUsers, requestPasswordReset, updatePassword }
 }

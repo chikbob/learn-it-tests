@@ -2,6 +2,7 @@
   <div class="app-shell">
     <main v-if="authLoading || (currentUser && !progressReady)" class="loading-page"><span></span><p>{{ authLoading ? 'Загружаем аккаунт…' : 'Синхронизируем прогресс…' }}</p></main>
     <AuthScreen v-else-if="!currentUser" :login="login" :register="register" />
+    <AdminScreen v-else-if="screen === 'admin' && currentUser.isAdmin" :load-users="loadAdminUsers" @app="screen = 'home'" @logout="handleLogout" />
     <HomeScreen
       v-else-if="screen === 'home'"
       :user="currentUser"
@@ -24,6 +25,7 @@
       @review="openHistory"
       @leaderboard="showLeaderboard"
       @profile="screen = 'profile'"
+      @admin="screen = 'admin'"
       @logout="handleLogout"
     />
     <LeaderboardScreen v-else-if="screen === 'leaderboard'" :players="leaderboard" :current-user="currentUser" @home="goHome" />
@@ -69,6 +71,7 @@
 
 <script setup>
 import AuthScreen from './components/AuthScreen.vue'
+import AdminScreen from './components/AdminScreen.vue'
 import HomeScreen from './components/HomeScreen.vue'
 import LeaderboardScreen from './components/LeaderboardScreen.vue'
 import ProfileScreen from './components/ProfileScreen.vue'
@@ -79,12 +82,13 @@ import { watch } from 'vue'
 import { useExam } from './composables/useExam'
 import { useAuth } from './composables/useAuth'
 
-const { currentUser, leaderboard, loading: authLoading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, requestPasswordReset, updatePassword } = useAuth()
+const { currentUser, leaderboard, loading: authLoading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, loadAdminUsers, requestPasswordReset, updatePassword } = useAuth()
 const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel } = useExam(currentUser.value?.id)
 
 watch(() => currentUser.value?.id || null, async userId => {
   await setUser(userId)
   if (userId && passwordRecovery.value) screen.value = 'profile'
+  else if (userId && currentUser.value?.isAdmin) screen.value = 'admin'
 }, { flush: 'sync' })
 
 void initialize()
