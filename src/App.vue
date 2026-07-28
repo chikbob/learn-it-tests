@@ -29,7 +29,7 @@
       @logout="handleLogout"
     />
     <LeaderboardScreen v-else-if="screen === 'leaderboard'" :players="leaderboard" :current-user="currentUser" @home="goHome" />
-    <ProfileScreen v-else-if="screen === 'profile'" :user="currentUser" :progress="progress" :total-accuracy="totalAccuracy" :password-recovery="passwordRecovery" :request-password-reset="requestPasswordReset" :update-password="updatePassword" @home="goHome" />
+    <ProfileScreen v-else-if="screen === 'profile'" :user="currentUser" :progress="progress" :total-accuracy="totalAccuracy" :password-recovery="passwordRecovery" :request-password-reset="requestPasswordReset" :update-password="updatePassword" :update-display-name="updateDisplayName" @home="goHome" />
     <QuizScreen
       v-else-if="screen === 'quiz' && current"
       :current="current"
@@ -82,7 +82,7 @@ import { watch } from 'vue'
 import { useExam } from './composables/useExam'
 import { useAuth } from './composables/useAuth'
 
-const { currentUser, leaderboard, loading: authLoading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, loadAdminUsers, requestPasswordReset, updatePassword } = useAuth()
+const { currentUser, leaderboard, loading: authLoading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, loadAdminUsers, requestPasswordReset, updatePassword, updateDisplayName } = useAuth()
 const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel } = useExam(currentUser.value?.id)
 
 watch(() => currentUser.value?.id || null, async userId => {

@@ -3,7 +3,7 @@ create extension if not exists citext;
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null check (char_length(display_name) between 2 and 30),
-  username_normalized citext not null unique,
+  username_normalized citext not null,
   role text not null default 'user' check (role in ('user', 'admin')),
   created_at timestamptz not null default now()
 );
@@ -128,6 +128,32 @@ $$;
 
 revoke all on function public.get_admin_users() from public;
 grant execute on function public.get_admin_users() to authenticated;
+
+create or replace function public.update_display_name(p_display_name text)
+returns text
+language plpgsql
+security definer set search_path = ''
+as $$
+declare
+  clean_name text := trim(p_display_name);
+begin
+  if (select auth.uid()) is null then raise exception 'Authentication required'; end if;
+  if char_length(clean_name) < 2 or char_length(clean_name) > 30 then
+    raise exception 'Display name must contain from 2 to 30 characters';
+  end if;
+
+  update public.profiles
+  set display_name = clean_name, username_normalized = lower(clean_name)
+  where id = (select auth.uid());
+  update public.leaderboard
+  set display_name = clean_name, updated_at = now()
+  where user_id = (select auth.uid());
+  return clean_name;
+end;
+$$;
+
+revoke all on function public.update_display_name(text) from public;
+grant execute on function public.update_display_name(text) to authenticated;
 
 create or replace function public.handle_new_user()
 returns trigger

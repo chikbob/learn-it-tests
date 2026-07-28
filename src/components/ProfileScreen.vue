@@ -21,7 +21,20 @@
       <div><span><Star :size="18" /></span><b>{{ progress.favorites.length }}</b><small>в избранном</small></div>
     </section>
 
-    <section class="security-section">
+    <section class="settings-section identity-settings">
+      <div class="security-copy">
+        <span><BadgeCheck :size="20" /></span>
+        <div><p class="step">Личные данные</p><h2>Отображаемое имя</h2><p>Это имя видно в приложении и таблице лидеров. Оно не обязано быть уникальным.</p></div>
+      </div>
+      <form class="password-form" @submit.prevent="submitName">
+        <label>Имя<input v-model="displayName" maxlength="30" autocomplete="name" placeholder="От 2 до 30 символов" required /></label>
+        <p v-if="nameError" class="profile-message error"><CircleAlert :size="16" /> {{ nameError }}</p>
+        <p v-if="nameSuccess" class="profile-message success"><CircleCheck :size="16" /> {{ nameSuccess }}</p>
+        <button class="secondary" :disabled="nameLoading || displayName.trim() === user.name">{{ nameLoading ? 'Сохраняем…' : 'Сохранить имя' }} <Save v-if="!nameLoading" :size="17" /></button>
+      </form>
+    </section>
+
+    <section class="settings-section security-section">
       <div class="security-copy">
         <span><ShieldCheck :size="20" /></span>
         <div><p class="step">Безопасность</p><h2>{{ passwordRecovery ? 'Задайте новый пароль' : 'Пароль аккаунта' }}</h2><p>{{ passwordRecovery ? 'Ссылка подтверждена. Новый пароль заменит текущий на всех устройствах.' : 'Изменение подтверждается ссылкой, отправленной на почту аккаунта.' }}</p></div>
@@ -41,15 +54,33 @@
 
 <script setup>
 import { ref } from 'vue'
-import { ArrowLeft, CheckCircle2, CircleAlert, CircleCheck, Cloud, KeyRound, Layers3, Mail, ShieldCheck, Star, Target, UserRound } from 'lucide-vue-next'
+import { ArrowLeft, BadgeCheck, CheckCircle2, CircleAlert, CircleCheck, Cloud, KeyRound, Layers3, Mail, Save, ShieldCheck, Star, Target, UserRound } from 'lucide-vue-next'
 
-const props = defineProps({ user: Object, progress: Object, totalAccuracy: Number, passwordRecovery: Boolean, requestPasswordReset: Function, updatePassword: Function })
+const props = defineProps({ user: Object, progress: Object, totalAccuracy: Number, passwordRecovery: Boolean, requestPasswordReset: Function, updatePassword: Function, updateDisplayName: Function })
 defineEmits(['home'])
 const password = ref('')
 const confirmation = ref('')
 const loading = ref(false)
 const error = ref('')
 const successMessage = ref('')
+const displayName = ref(props.user.name)
+const nameLoading = ref(false)
+const nameError = ref('')
+const nameSuccess = ref('')
+
+async function submitName() {
+  nameError.value = ''
+  nameSuccess.value = ''
+  nameLoading.value = true
+  try {
+    displayName.value = await props.updateDisplayName(displayName.value)
+    nameSuccess.value = 'Имя обновлено на всех устройствах'
+  } catch (reason) {
+    nameError.value = reason.message
+  } finally {
+    nameLoading.value = false
+  }
+}
 
 async function submit() {
   error.value = ''
@@ -84,13 +115,14 @@ async function submit() {
 .sync-status { padding: 9px 11px; border: 1px solid #cfe0d9; border-radius: 4px; color: #28704d; background: #edf7f1; display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 800; }
 .profile-stats { margin: 18px 0 34px; display: grid; grid-template-columns: repeat(4,1fr); border: 1px solid #dce2dd; background: white; }
 .profile-stats > div { min-height: 112px; padding: 20px; border-left: 1px solid #e5e9e5; display: grid; grid-template-columns: 32px 1fr; align-content: center; column-gap: 10px; }.profile-stats > div:first-child { border-left: 0; }.profile-stats span { width: 32px; height: 32px; grid-row: 1/3; display: grid; place-items: center; border-radius: 4px; background: #e9f1ee; color: #2d7f77; }.profile-stats b { font: 700 25px 'Source Serif 4', serif; }.profile-stats small { color: #78817f; font-size: 9px; text-transform: uppercase; font-weight: 700; }
-.security-section { border-top: 1px solid #dce2dd; padding-top: 30px; display: grid; grid-template-columns: minmax(260px,.8fr) minmax(360px,1.2fr); gap: 55px; }
+.settings-section { border-top: 1px solid #dce2dd; padding-top: 30px; display: grid; grid-template-columns: minmax(260px,.8fr) minmax(360px,1.2fr); gap: 55px; }
+.identity-settings { margin-bottom: 34px; }
 .security-copy { display: flex; align-items: flex-start; gap: 13px; }.security-copy > span { width: 42px; height: 42px; flex: 0 0 auto; border-radius: 5px; display: grid; place-items: center; background: #e9f1ee; color: #2d7f77; }.security-copy h2 { margin: 7px 0; font: 700 26px 'Source Serif 4', serif; }.security-copy p:last-child { margin: 0; color: #78817f; font-size: 12px; line-height: 1.65; }
 .password-form { display: grid; gap: 18px; background: white; border: 1px solid #dce2dd; padding: 26px; }
 .password-form label { display: grid; gap: 7px; color: #44504c; font-size: 10px; text-transform: uppercase; font-weight: 800; }
 .password-form input { height: 46px; border: 1px solid #d3dad5; border-radius: 4px; padding: 0 12px; font: 600 14px Manrope, sans-serif; outline: 0; }
 .password-form input:focus { border-color: #2d7f77; box-shadow: 0 0 0 3px rgba(45,127,119,.1); }
 .profile-message { margin: 0; display: flex; gap: 7px; align-items: center; font-size: 12px; }.profile-message.error { color: #a3423d; }.profile-message.success { color: #28704d; }
-.password-form .primary { justify-self: start; }
-@media (max-width: 700px) { .profile-page { padding: 30px 14px 60px; }.profile-header h1 { font-size: 38px; }.account-overview { padding: 22px 18px; flex-wrap: wrap; }.profile-avatar { width: 60px; height: 60px; }.sync-status { width: 100%; justify-content: center; }.profile-stats { grid-template-columns: repeat(2,1fr); }.profile-stats > div:nth-child(3) { border-left: 0; border-top: 1px solid #e5e9e5; }.profile-stats > div:nth-child(4) { border-top: 1px solid #e5e9e5; }.security-section { grid-template-columns: 1fr; gap: 20px; }.password-form { padding: 22px 18px; }.password-form .primary { width: 100%; } }
+.password-form .primary, .password-form .secondary { justify-self: start; }
+@media (max-width: 700px) { .profile-page { padding: 30px 14px 60px; }.profile-header h1 { font-size: 38px; }.account-overview { padding: 22px 18px; flex-wrap: wrap; }.profile-avatar { width: 60px; height: 60px; }.sync-status { width: 100%; justify-content: center; }.profile-stats { grid-template-columns: repeat(2,1fr); }.profile-stats > div:nth-child(3) { border-left: 0; border-top: 1px solid #e5e9e5; }.profile-stats > div:nth-child(4) { border-top: 1px solid #e5e9e5; }.settings-section { grid-template-columns: 1fr; gap: 20px; }.password-form { padding: 22px 18px; }.password-form .primary, .password-form .secondary { width: 100%; } }
 </style>

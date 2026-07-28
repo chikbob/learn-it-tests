@@ -120,5 +120,14 @@ export function useAuth() {
     window.history.replaceState({}, document.title, window.location.pathname)
   }
 
-  return { currentUser, isAuthenticated, leaderboard, loading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, loadAdminUsers, requestPasswordReset, updatePassword }
+  async function updateDisplayName(name) {
+    const cleanName = name.trim()
+    if (cleanName.length < 2 || cleanName.length > 30) throw new Error('Имя должно содержать от 2 до 30 символов')
+    const { data, error } = await supabase.rpc('update_display_name', { p_display_name: cleanName })
+    if (error) throw new Error('Не удалось изменить имя. Попробуйте еще раз.')
+    currentUser.value = { ...currentUser.value, name: data }
+    return data
+  }
+
+  return { currentUser, isAuthenticated, leaderboard, loading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, loadAdminUsers, requestPasswordReset, updatePassword, updateDisplayName }
 }
