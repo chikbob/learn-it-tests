@@ -22,9 +22,9 @@
         <label>Пароль
           <span class="password-input"><input v-model="password" :type="showPassword ? 'text' : 'password'" :autocomplete="formMode === 'login' ? 'current-password' : 'new-password'" minlength="6" placeholder="Минимум 6 символов" required /><button type="button" @click="showPassword = !showPassword" :title="showPassword ? 'Скрыть пароль' : 'Показать пароль'"><EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" /></button></span>
         </label>
-        <p v-if="error" class="auth-error"><CircleAlert :size="16" /> {{ error }}</p>
+        <p v-if="error" class="auth-error"><CircleAlert :size="16" /> <span>{{ error }}</span></p>
         <p v-if="success" class="auth-success"><MailCheck :size="17" /> {{ success }}</p>
-        <button class="primary auth-submit" :disabled="loading">{{ loading ? 'Подождите…' : formMode === 'login' ? 'Войти' : 'Создать аккаунт' }} <ArrowRight v-if="!loading" :size="18" /></button>
+        <button class="primary auth-submit" :disabled="loading || registrationCoolingDown">{{ submitLabel }} <ArrowRight v-if="!loading && !registrationCoolingDown" :size="18" /></button>
         <small><LockKeyhole :size="13" /> Аккаунт и прогресс синхронизируются через Supabase. Пароль не хранится в приложении.</small>
       </form>
     </section>
@@ -32,7 +32,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { ArrowRight, ChartNoAxesColumnIncreasing, CircleAlert, Eye, EyeOff, GraduationCap, LockKeyhole, MailCheck, RotateCcw, Trophy } from 'lucide-vue-next'
 
 const props = defineProps({ login: Function, register: Function })
@@ -45,6 +45,24 @@ const showPassword = ref(false)
 const loading = ref(false)
 const error = ref('')
 const success = ref('')
+const cooldownUntil = ref(Number(localStorage.getItem('learnit-signup-cooldown')) || 0)
+const now = ref(Date.now())
+const registrationCoolingDown = computed(() => formMode.value === 'register' && cooldownUntil.value > now.value)
+const cooldownMinutes = computed(() => Math.max(1, Math.ceil((cooldownUntil.value - now.value) / 60000)))
+const submitLabel = computed(() => {
+  if (loading.value) return 'Подождите…'
+  if (registrationCoolingDown.value) return `Повторить через ${cooldownMinutes.value} мин.`
+  return formMode.value === 'login' ? 'Войти' : 'Создать аккаунт'
+})
+const cooldownTimer = window.setInterval(() => {
+  now.value = Date.now()
+  if (cooldownUntil.value && cooldownUntil.value <= now.value) {
+    cooldownUntil.value = 0
+    localStorage.removeItem('learnit-signup-cooldown')
+  }
+}, 30000)
+
+onBeforeUnmount(() => window.clearInterval(cooldownTimer))
 
 function switchMode(mode) {
   formMode.value = mode
@@ -70,6 +88,11 @@ async function submit() {
     }
   } catch (reason) {
     error.value = reason.message
+    if (reason.code === 'email_rate_limit') {
+      cooldownUntil.value = Date.now() + reason.retryAfter * 1000
+      now.value = Date.now()
+      localStorage.setItem('learnit-signup-cooldown', String(cooldownUntil.value))
+    }
   } finally {
     loading.value = false
   }

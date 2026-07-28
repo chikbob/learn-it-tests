@@ -1,6 +1,21 @@
 import { computed, ref } from 'vue'
 import { supabase } from '../lib/supabase'
 
+function authError(error, fallback) {
+  const message = error?.message?.toLocaleLowerCase() || ''
+
+  if (error?.status === 429 || message.includes('rate limit')) {
+    const limited = new Error('Лимит писем временно исчерпан. Проверьте почту: письмо могло уже прийти. Если его нет, повторите попытку через час.')
+    limited.code = 'email_rate_limit'
+    limited.retryAfter = 60 * 60
+    return limited
+  }
+  if (message.includes('already registered') || message.includes('already exists')) {
+    return new Error('Аккаунт с таким email уже существует. Перейдите во вкладку «Вход».')
+  }
+  return new Error(fallback || error?.message || 'Не удалось выполнить запрос')
+}
+
 export function useAuth() {
   const currentUser = ref(null)
   const leaderboard = ref([])
@@ -57,7 +72,7 @@ export function useAuth() {
     })
     if (error) {
       if (error.message.includes('Database error')) throw new Error('Аккаунт с таким именем уже существует')
-      throw new Error(error.message)
+      throw authError(error)
     }
     if (!data.session) return { pendingConfirmation: true, email: data.user?.email || email }
     return loadProfile(data.user)
@@ -81,7 +96,7 @@ export function useAuth() {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/?reset_password=1`,
     })
-    if (error) throw new Error(error.message)
+    if (error) throw authError(error, 'Не удалось отправить письмо для смены пароля')
   }
 
   async function refreshLeaderboard() {
