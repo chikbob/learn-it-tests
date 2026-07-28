@@ -14,7 +14,7 @@ export function useAuth() {
     }
     const { data, error } = await supabase.from('profiles').select('id, display_name').eq('id', user.id).single()
     if (error) throw new Error('Не удалось загрузить профиль. Проверьте настройку базы данных.')
-    currentUser.value = { id: data.id, name: data.display_name }
+    currentUser.value = { id: data.id, name: data.display_name, email: user.email }
     return currentUser.value
   }
 
@@ -64,10 +64,16 @@ export function useAuth() {
   }
 
   async function refreshLeaderboard() {
-    const { data, error } = await supabase.from('leaderboard').select('user_id, display_name, best_grade, accuracy, sessions').order('best_grade', { ascending: false }).order('accuracy', { ascending: false }).order('sessions', { ascending: false }).limit(100)
+    const { data, error } = await supabase.from('leaderboard').select('user_id, display_name, average_grade, simulation_count').gt('simulation_count', 0).order('average_grade', { ascending: false }).order('simulation_count', { ascending: false }).limit(100)
     if (error) throw new Error('Не удалось загрузить таблицу лидеров')
-    leaderboard.value = data.map(row => ({ id: row.user_id, name: row.display_name, bestGrade: row.best_grade, accuracy: row.accuracy, sessions: row.sessions }))
+    leaderboard.value = data.map(row => ({ id: row.user_id, name: row.display_name, averageGrade: row.average_grade, simulationCount: row.simulation_count }))
   }
 
-  return { currentUser, isAuthenticated, leaderboard, loading, initialize, register, login, logout, refreshLeaderboard }
+  async function updatePassword(password) {
+    if (password.length < 6) throw new Error('Пароль должен содержать минимум 6 символов')
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw new Error(error.message)
+  }
+
+  return { currentUser, isAuthenticated, leaderboard, loading, initialize, register, login, logout, refreshLeaderboard, updatePassword }
 }

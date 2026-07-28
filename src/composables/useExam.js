@@ -100,13 +100,10 @@ export function useExam(initialUserId = null) {
     }
   }
 
-  function syncLeaderboard() {
+  function recordSimulation(attemptId, grade) {
     if (!userId) return
-    const exams = progress.value.history.filter(session => session.mode === 'exam')
-    const bestGrade = exams.length ? Math.max(...exams.map(session => session.grade || Math.max(1, Math.round(session.score / session.total * 100)))) : 0
-    const accuracy = progress.value.total ? Math.round(progress.value.correct / progress.value.total * 100) : 0
-    void supabase.from('leaderboard').update({ best_grade: bestGrade, accuracy, sessions: progress.value.sessions, updated_at: new Date().toISOString() }).eq('user_id', userId).then(({ error }) => {
-      if (error) console.error('Leaderboard sync failed:', error.message)
+    void supabase.rpc('record_simulation_result', { p_attempt_id: attemptId, p_grade: grade }).then(({ error }) => {
+      if (error) console.error('Simulation rating sync failed:', error.message)
     })
   }
 
@@ -173,6 +170,9 @@ export function useExam(initialUserId = null) {
   }
 
   function finish() {
+    const attemptId = Date.now()
+    const completedMode = mode.value
+    const completedGrade = examGrade.value
     const wrongIds = wrongQuestions.value.map(question => question.id)
     const resolved = quiz.value.filter((question, i) => answers.value[i] === question.correct).map(question => question.id)
     const mastery = { ...progress.value.mastery }
@@ -188,11 +188,11 @@ export function useExam(initialUserId = null) {
       total: progress.value.total + quiz.value.length,
       mistakes: remainingMistakes,
       mastery,
-      history: [{ id: Date.now(), date: new Date().toISOString(), mode: mode.value, track: track.value, topic: mode.value === 'thematic' ? selectedSection.value : null, score: sessionScore.value, grade: isExam.value ? examGrade.value : null, total: quiz.value.length, sections: sectionResults, questionIds: quiz.value.map(question => question.id), answers: [...answers.value] }, ...progress.value.history].slice(0, 50),
+      history: [{ id: attemptId, date: new Date().toISOString(), mode: completedMode, track: track.value, topic: completedMode === 'thematic' ? selectedSection.value : null, score: sessionScore.value, grade: completedMode === 'exam' ? completedGrade : null, total: quiz.value.length, sections: sectionResults, questionIds: quiz.value.map(question => question.id), answers: [...answers.value] }, ...progress.value.history].slice(0, 50),
       activeQuiz: null,
     }
     persist()
-    syncLeaderboard()
+    if (completedMode === 'exam') recordSimulation(attemptId, completedGrade)
     screen.value = 'results'
   }
 
@@ -248,7 +248,6 @@ export function useExam(initialUserId = null) {
     progress.value = emptyProgress()
     localStorage.removeItem(progressKey())
     persist()
-    syncLeaderboard()
     screen.value = 'home'
   }
 
