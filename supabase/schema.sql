@@ -9,11 +9,30 @@ create table if not exists public.profiles (
 );
 
 alter table public.profiles add column if not exists role text not null default 'user';
+alter table public.profiles drop constraint if exists profiles_display_name_safe_check;
+alter table public.profiles add constraint profiles_display_name_safe_check
+  check (char_length(display_name) between 2 and 30 and display_name !~ '[[:cntrl:]]');
 
 create table if not exists public.progress (
   user_id uuid primary key references auth.users(id) on delete cascade,
   data jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
+);
+
+alter table public.progress drop constraint if exists progress_data_size_check;
+alter table public.progress add constraint progress_data_size_check check (
+  jsonb_typeof(data) = 'object'
+  and octet_length(data::text) <= 524288
+  and coalesce(jsonb_typeof(data -> 'sessions'), 'number') = 'number'
+  and coalesce((data ->> 'sessions')::numeric, 0) between 0 and 1000000
+  and coalesce(jsonb_typeof(data -> 'correct'), 'number') = 'number'
+  and coalesce((data ->> 'correct')::numeric, 0) between 0 and 100000000
+  and coalesce(jsonb_typeof(data -> 'total'), 'number') = 'number'
+  and coalesce((data ->> 'total')::numeric, 0) between 0 and 100000000
+  and coalesce(jsonb_typeof(data -> 'history'), 'array') = 'array'
+  and coalesce(jsonb_typeof(data -> 'favorites'), 'array') = 'array'
+  and coalesce(jsonb_typeof(data -> 'mistakes'), 'array') = 'array'
+  and coalesce(jsonb_typeof(data -> 'pendingSimulations'), 'array') = 'array'
 );
 
 create table if not exists public.leaderboard (
@@ -36,6 +55,9 @@ create table if not exists public.simulation_attempts (
   created_at timestamptz not null default now(),
   primary key (user_id, attempt_id)
 );
+
+create index if not exists simulation_attempts_user_created_idx
+  on public.simulation_attempts (user_id, created_at desc);
 
 alter table public.profiles enable row level security;
 alter table public.progress enable row level security;
@@ -62,9 +84,20 @@ security definer set search_path = ''
 as $$
 declare
   inserted_rows integer;
+  recent_attempts integer;
 begin
   if (select auth.uid()) is null then raise exception 'Authentication required'; end if;
-  if p_grade < 1 or p_grade > 100 then raise exception 'Grade must be between 1 and 100'; end if;
+  if p_attempt_id < 1 or p_grade < 1 or p_grade > 100 then raise exception 'Invalid simulation result'; end if;
+
+  perform pg_advisory_xact_lock(hashtext((select auth.uid())::text));
+  if exists (
+    select 1 from public.simulation_attempts
+    where user_id = (select auth.uid()) and attempt_id = p_attempt_id
+  ) then return; end if;
+  select count(*) into recent_attempts
+  from public.simulation_attempts
+  where user_id = (select auth.uid()) and created_at > now() - interval '24 hours';
+  if recent_attempts >= 100 then raise exception 'Daily simulation limit exceeded'; end if;
 
   insert into public.simulation_attempts (attempt_id, user_id, grade)
   values (p_attempt_id, (select auth.uid()), p_grade)
@@ -82,7 +115,7 @@ begin
 end;
 $$;
 
-revoke all on function public.record_simulation_result(bigint, integer) from public;
+revoke all on function public.record_simulation_result(bigint, integer) from public, anon;
 grant execute on function public.record_simulation_result(bigint, integer) to authenticated;
 
 create or replace function public.get_admin_users()

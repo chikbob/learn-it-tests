@@ -2,14 +2,20 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import { BookOpen, Clock3, Star, Target } from 'lucide-vue-next'
 import { questions, sections } from '../questions'
 import { supabase } from '../lib/supabase'
+import { readJson, writeJson } from '../lib/storage'
 
 const emptyProgress = () => ({ sessions: 0, correct: 0, total: 0, mistakes: [], favorites: [], mastery: {}, history: [], activeQuiz: null, pendingSimulations: [] })
 const validQuestionIds = new Set(questions.map(question => question.id))
 
 function sanitizeProgress(value = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) value = {}
   const sanitized = { ...emptyProgress(), ...value }
-  sanitized.mistakes = sanitized.mistakes.filter(id => validQuestionIds.has(id))
-  sanitized.favorites = sanitized.favorites.filter(id => validQuestionIds.has(id))
+  sanitized.sessions = Number.isSafeInteger(sanitized.sessions) && sanitized.sessions >= 0 ? sanitized.sessions : 0
+  sanitized.correct = Number.isSafeInteger(sanitized.correct) && sanitized.correct >= 0 ? sanitized.correct : 0
+  sanitized.total = Number.isSafeInteger(sanitized.total) && sanitized.total >= sanitized.correct ? sanitized.total : sanitized.correct
+  sanitized.mistakes = Array.isArray(sanitized.mistakes) ? sanitized.mistakes.filter(id => validQuestionIds.has(id)) : []
+  sanitized.favorites = Array.isArray(sanitized.favorites) ? sanitized.favorites.filter(id => validQuestionIds.has(id)) : []
+  sanitized.mastery = sanitized.mastery && typeof sanitized.mastery === 'object' && !Array.isArray(sanitized.mastery) ? sanitized.mastery : {}
   sanitized.history = Array.isArray(sanitized.history) ? sanitized.history : []
   sanitized.pendingSimulations = Array.isArray(sanitized.pendingSimulations) ? sanitized.pendingSimulations : []
   if (sanitized.activeQuiz?.ids.some(id => !validQuestionIds.has(id))) sanitized.activeQuiz = null
@@ -22,6 +28,8 @@ export function useExam(initialUserId = null) {
   let syncPromise = null
   let syncRequested = false
   let pullPromise = null
+  let syncFailures = 0
+  let nextSyncAttemptAt = 0
   const screen = ref('home')
   const track = ref('it')
   const selectedSection = ref('networks')
@@ -35,12 +43,12 @@ export function useExam(initialUserId = null) {
   const isOnline = ref(navigator.onLine)
   const syncing = ref(false)
   const progressKey = () => userId ? `learnit-progress:${userId}` : 'learnit-progress'
-  const stored = JSON.parse(localStorage.getItem(progressKey()) || 'null')
+  const stored = readJson(progressKey())
   const progress = ref(sanitizeProgress(stored || {}))
   const pendingSyncCount = computed(() => progress.value.history.filter(session => session.syncStatus === 'pending').length)
   if (progress.value.activeQuiz?.mode === 'exam' && progress.value.activeQuiz.ids.length !== 30) {
     progress.value.activeQuiz = null
-    localStorage.setItem(progressKey(), JSON.stringify(progress.value))
+    writeJson(progressKey(), progress.value)
   }
 
   const modes = computed(() => [
@@ -148,11 +156,21 @@ export function useExam(initialUserId = null) {
   }
 
   function saveLocal() {
-    localStorage.setItem(progressKey(), JSON.stringify(progress.value))
+    writeJson(progressKey(), progress.value)
   }
 
   function hasPendingChanges() {
     return progress.value.pendingSimulations.length > 0 || progress.value.history.some(session => session.syncStatus === 'pending')
+  }
+
+  function recordSyncSuccess() {
+    syncFailures = 0
+    nextSyncAttemptAt = 0
+  }
+
+  function recordSyncFailure() {
+    syncFailures++
+    nextSyncAttemptAt = Date.now() + Math.min(5 * 60 * 1000, 10000 * (2 ** Math.min(syncFailures - 1, 5)))
   }
 
   async function runSync() {
@@ -180,8 +198,10 @@ export function useExam(initialUserId = null) {
         const syncedIds = new Set(snapshot.history.map(session => session.id))
         progress.value.history = progress.value.history.map(session => syncedIds.has(session.id) ? { ...session, syncStatus: 'synced' } : session)
         saveLocal()
+        recordSyncSuccess()
       }
     })().catch(error => {
+      recordSyncFailure()
       console.error('Progress sync failed:', error.message)
     }).finally(() => {
       syncing.value = false
@@ -206,7 +226,9 @@ export function useExam(initialUserId = null) {
         progress.value = { ...remote, activeQuiz }
         saveLocal()
       }
+      recordSyncSuccess()
     })().catch(error => {
+      recordSyncFailure()
       console.error('Progress refresh failed:', error.message)
     }).finally(() => {
       pullPromise = null
@@ -217,6 +239,7 @@ export function useExam(initialUserId = null) {
   async function synchronizeNow() {
     isOnline.value = navigator.onLine
     if (!userId || !isOnline.value) return
+    if (Date.now() < nextSyncAttemptAt) return
     if (hasPendingChanges()) await runSync()
     else await pullRemoteProgress()
   }
@@ -368,7 +391,7 @@ export function useExam(initialUserId = null) {
       localStorage.setItem(userKey, saved)
       localStorage.removeItem('learnit-progress')
     }
-    progress.value = sanitizeProgress(saved ? JSON.parse(saved) : {})
+    progress.value = sanitizeProgress(saved ? readJson(userKey, {}) : {})
     try {
       if (nextUserId && navigator.onLine) {
         const progressRequest = supabase.from('progress').select('data').eq('user_id', nextUserId).maybeSingle()
@@ -382,7 +405,7 @@ export function useExam(initialUserId = null) {
           const hasLocalQueue = hasPendingChanges()
           if (!hasLocalQueue && (remote.sessions || 0) >= progress.value.sessions) {
             progress.value = remote
-            localStorage.setItem(userKey, JSON.stringify(progress.value))
+            writeJson(userKey, progress.value)
           } else persist()
         }
       }
@@ -412,6 +435,7 @@ export function useExam(initialUserId = null) {
 
   function handleOnline() {
     isOnline.value = true
+    nextSyncAttemptAt = 0
     void synchronizeNow()
   }
 

@@ -41,8 +41,8 @@
       </div>
       <form class="password-form" @submit.prevent="submit">
         <template v-if="passwordRecovery">
-          <label>Новый пароль<input v-model="password" type="password" autocomplete="new-password" minlength="6" placeholder="Минимум 6 символов" required /></label>
-          <label>Повторите пароль<input v-model="confirmation" type="password" autocomplete="new-password" minlength="6" placeholder="Введите пароль еще раз" required /></label>
+          <label>Новый пароль<input v-model="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Минимум 8 символов" required /></label>
+          <label>Повторите пароль<input v-model="confirmation" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Введите пароль еще раз" required /></label>
         </template>
         <p v-if="error" class="profile-message error"><CircleAlert :size="16" /> {{ error }}</p>
         <p v-if="successMessage" class="profile-message success"><CircleCheck :size="16" /> {{ successMessage }}</p>

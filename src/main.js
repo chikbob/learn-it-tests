@@ -1,8 +1,12 @@
 import { createApp } from 'vue'
-import { registerSW } from 'virtual:pwa-register'
 import App from './App.vue'
 import './style.css'
 
 createApp(App).mount('#app')
 
-if (import.meta.env.PROD) registerSW({ immediate: true })
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', async () => {
+    const registration = await navigator.serviceWorker.register('/sw.js')
+    window.setInterval(() => registration.update(), 60 * 60 * 1000)
+  })
+}

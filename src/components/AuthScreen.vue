@@ -20,7 +20,7 @@
         <label v-if="formMode === 'register'">Имя<input v-model="name" autocomplete="name" maxlength="30" placeholder="Например, Алексей" required /></label>
         <label>Email<input v-model="email" type="email" autocomplete="email" placeholder="name@example.com" required /></label>
         <label>Пароль
-          <span class="password-input"><input v-model="password" :type="showPassword ? 'text' : 'password'" :autocomplete="formMode === 'login' ? 'current-password' : 'new-password'" minlength="6" placeholder="Минимум 6 символов" required /><button type="button" @click="showPassword = !showPassword" :title="showPassword ? 'Скрыть пароль' : 'Показать пароль'"><EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" /></button></span>
+          <span class="password-input"><input v-model="password" :type="showPassword ? 'text' : 'password'" :autocomplete="formMode === 'login' ? 'current-password' : 'new-password'" :minlength="formMode === 'register' ? 8 : 6" maxlength="128" :placeholder="formMode === 'register' ? 'Минимум 8 символов' : 'Введите пароль'" required /><button type="button" @click="showPassword = !showPassword" :title="showPassword ? 'Скрыть пароль' : 'Показать пароль'"><EyeOff v-if="showPassword" :size="18" /><Eye v-else :size="18" /></button></span>
         </label>
         <p v-if="error" class="auth-error"><CircleAlert :size="16" /> <span>{{ error }}</span></p>
         <p v-if="success" class="auth-success"><MailCheck :size="17" /> {{ success }}</p>

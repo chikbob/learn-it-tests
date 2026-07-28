@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { supabase } from '../lib/supabase'
+import { readJson, writeJson } from '../lib/storage'
 
 function authError(error, fallback) {
   const message = error?.message?.toLocaleLowerCase() || ''
@@ -30,21 +31,22 @@ export function useAuth() {
       currentUser.value = null
       return null
     }
-    const cached = JSON.parse(localStorage.getItem(profileKey(user.id)) || 'null')
-    if (!navigator.onLine && cached) {
+    const cached = readJson(profileKey(user.id))
+    const validCachedProfile = cached?.id === user.id && typeof cached.name === 'string' && cached.name.length >= 2
+    if (!navigator.onLine && validCachedProfile) {
       currentUser.value = cached
       return cached
     }
     const { data, error } = await supabase.from('profiles').select('id, display_name, role').eq('id', user.id).single()
     if (error) {
-      if (cached) {
+      if (validCachedProfile) {
         currentUser.value = cached
         return cached
       }
       throw new Error('Не удалось загрузить профиль. Проверьте настройку базы данных.')
     }
     currentUser.value = { id: data.id, name: data.display_name, email: user.email, role: data.role || 'user', isAdmin: data.role === 'admin' }
-    localStorage.setItem(profileKey(user.id), JSON.stringify(currentUser.value))
+    writeJson(profileKey(user.id), currentUser.value)
     return currentUser.value
   }
 
@@ -74,7 +76,10 @@ export function useAuth() {
   async function register(name, email, password) {
     const cleanName = name.trim()
     if (cleanName.length < 2) throw new Error('Имя должно содержать минимум 2 символа')
-    if (password.length < 6) throw new Error('Пароль должен содержать минимум 6 символов')
+    if (/[\u0000-\u001f\u007f]/.test(cleanName)) throw new Error('Имя содержит недопустимые символы')
+    if (email.length > 254) throw new Error('Email слишком длинный')
+    if (password.length < 8) throw new Error('Пароль должен содержать минимум 8 символов')
+    if (password.length > 128) throw new Error('Пароль не должен быть длиннее 128 символов')
     const normalized = cleanName.toLocaleLowerCase('ru').normalize('NFKC')
     const { data, error } = await supabase.auth.signUp({
       email: email.trim().toLocaleLowerCase(),
@@ -127,7 +132,8 @@ export function useAuth() {
   }
 
   async function updatePassword(password) {
-    if (password.length < 6) throw new Error('Пароль должен содержать минимум 6 символов')
+    if (password.length < 8) throw new Error('Пароль должен содержать минимум 8 символов')
+    if (password.length > 128) throw new Error('Пароль не должен быть длиннее 128 символов')
     const { error } = await supabase.auth.updateUser({ password })
     if (error) throw new Error(error.message)
     passwordRecovery.value = false
@@ -140,7 +146,7 @@ export function useAuth() {
     const { data, error } = await supabase.rpc('update_display_name', { p_display_name: cleanName })
     if (error) throw new Error('Не удалось изменить имя. Попробуйте еще раз.')
     currentUser.value = { ...currentUser.value, name: data }
-    localStorage.setItem(profileKey(currentUser.value.id), JSON.stringify(currentUser.value))
+    writeJson(profileKey(currentUser.value.id), currentUser.value)
     return data
   }
 
