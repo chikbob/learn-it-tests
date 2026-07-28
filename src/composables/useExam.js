@@ -21,6 +21,7 @@ export function useExam(initialUserId = null) {
   let progressSyncId = 0
   let syncPromise = null
   let syncRequested = false
+  let pullPromise = null
   const screen = ref('home')
   const track = ref('it')
   const selectedSection = ref('networks')
@@ -150,6 +151,10 @@ export function useExam(initialUserId = null) {
     localStorage.setItem(progressKey(), JSON.stringify(progress.value))
   }
 
+  function hasPendingChanges() {
+    return progress.value.pendingSimulations.length > 0 || progress.value.history.some(session => session.syncStatus === 'pending')
+  }
+
   async function runSync() {
     if (!userId || !navigator.onLine) return
     syncRequested = true
@@ -183,6 +188,37 @@ export function useExam(initialUserId = null) {
       syncPromise = null
     })
     return syncPromise
+  }
+
+  async function pullRemoteProgress() {
+    if (!userId || !navigator.onLine || syncing.value || hasPendingChanges()) return
+    if (pullPromise) return pullPromise
+    const ownerId = userId
+    pullPromise = (async () => {
+      const { data, error } = await supabase.from('progress').select('data').eq('user_id', ownerId).maybeSingle()
+      if (error) throw error
+      if (!data?.data || ownerId !== userId || hasPendingChanges()) return
+      const remote = sanitizeProgress(data.data)
+      const localHistoryIds = new Set(progress.value.history.map(session => session.id))
+      const hasNewRemoteSession = remote.history.some(session => !localHistoryIds.has(session.id))
+      if (remote.sessions > progress.value.sessions || (remote.sessions === progress.value.sessions && hasNewRemoteSession)) {
+        const activeQuiz = progress.value.activeQuiz || remote.activeQuiz
+        progress.value = { ...remote, activeQuiz }
+        saveLocal()
+      }
+    })().catch(error => {
+      console.error('Progress refresh failed:', error.message)
+    }).finally(() => {
+      pullPromise = null
+    })
+    return pullPromise
+  }
+
+  async function synchronizeNow() {
+    isOnline.value = navigator.onLine
+    if (!userId || !isOnline.value) return
+    if (hasPendingChanges()) await runSync()
+    else await pullRemoteProgress()
   }
 
   function persist() {
@@ -343,7 +379,7 @@ export function useExam(initialUserId = null) {
         if (error) throw error
         if (data?.data) {
           const remote = sanitizeProgress(data.data)
-          const hasLocalQueue = progress.value.history.some(session => session.syncStatus === 'pending') || progress.value.pendingSimulations.length > 0
+          const hasLocalQueue = hasPendingChanges()
           if (!hasLocalQueue && (remote.sessions || 0) >= progress.value.sessions) {
             progress.value = remote
             localStorage.setItem(userKey, JSON.stringify(progress.value))
@@ -376,18 +412,31 @@ export function useExam(initialUserId = null) {
 
   function handleOnline() {
     isOnline.value = true
-    void runSync()
+    void synchronizeNow()
   }
 
   function handleOffline() {
     isOnline.value = false
   }
 
+  function handleVisibility() {
+    if (document.visibilityState === 'visible') void synchronizeNow()
+  }
+
+  const syncTimer = window.setInterval(() => {
+    if (document.visibilityState === 'visible') void synchronizeNow()
+  }, 10000)
+
   window.addEventListener('online', handleOnline)
   window.addEventListener('offline', handleOffline)
+  window.addEventListener('focus', synchronizeNow)
+  document.addEventListener('visibilitychange', handleVisibility)
   onBeforeUnmount(() => {
+    window.clearInterval(syncTimer)
     window.removeEventListener('online', handleOnline)
     window.removeEventListener('offline', handleOffline)
+    window.removeEventListener('focus', synchronizeNow)
+    document.removeEventListener('visibilitychange', handleVisibility)
   })
 
   return { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, isOnline, syncing, pendingSyncCount, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel }
