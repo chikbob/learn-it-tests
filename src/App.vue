@@ -1,7 +1,7 @@
 <template>
   <div class="app-shell">
     <main v-if="authLoading || (currentUser && !progressReady)" class="loading-page"><span></span><p>{{ authLoading ? 'Загружаем аккаунт…' : 'Синхронизируем прогресс…' }}</p></main>
-    <AuthScreen v-else-if="!currentUser" :login="login" :register="register" @authenticated="handleAuthenticated" />
+    <AuthScreen v-else-if="!currentUser" :login="login" :register="register" />
     <HomeScreen
       v-else-if="screen === 'home'"
       :user="currentUser"
@@ -75,26 +75,22 @@ import ProfileScreen from './components/ProfileScreen.vue'
 import QuestionCatalog from './components/QuestionCatalog.vue'
 import QuizScreen from './components/QuizScreen.vue'
 import ResultsScreen from './components/ResultsScreen.vue'
+import { watch } from 'vue'
 import { useExam } from './composables/useExam'
 import { useAuth } from './composables/useAuth'
 
 const { currentUser, leaderboard, loading: authLoading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, requestPasswordReset, updatePassword } = useAuth()
 const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel } = useExam(currentUser.value?.id)
 
-initialize().then(async () => {
-  if (currentUser.value) {
-    await setUser(currentUser.value.id)
-    if (passwordRecovery.value) screen.value = 'profile'
-  }
-})
+watch(() => currentUser.value?.id || null, async userId => {
+  await setUser(userId)
+  if (userId && passwordRecovery.value) screen.value = 'profile'
+}, { flush: 'sync' })
 
-async function handleAuthenticated(account) {
-  await setUser(account.id)
-}
+void initialize()
 
 async function handleLogout() {
   await logout()
-  setUser(null)
 }
 
 async function showLeaderboard() {

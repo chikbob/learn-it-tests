@@ -16,6 +16,7 @@ function sanitizeProgress(value = {}) {
 
 export function useExam(initialUserId = null) {
   let userId = initialUserId
+  let progressSyncId = 0
   const screen = ref('home')
   const track = ref('it')
   const selectedSection = ref('networks')
@@ -285,6 +286,7 @@ export function useExam(initialUserId = null) {
   }
 
   async function setUser(nextUserId) {
+    const syncId = ++progressSyncId
     progressReady.value = false
     userId = nextUserId
     quiz.value = []
@@ -300,8 +302,12 @@ export function useExam(initialUserId = null) {
     progress.value = sanitizeProgress(saved ? JSON.parse(saved) : {})
     try {
       if (nextUserId) {
-        const { data, error } = await supabase.from('progress').select('data').eq('user_id', nextUserId).single()
-        if (error && error.code !== 'PGRST116') throw error
+        const progressRequest = supabase.from('progress').select('data').eq('user_id', nextUserId).maybeSingle()
+        const { data, error } = await Promise.race([
+          progressRequest,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Progress sync timeout')), 10000)),
+        ])
+        if (error) throw error
         if (data?.data) {
           const remote = sanitizeProgress(data.data)
           if ((remote.sessions || 0) >= progress.value.sessions) {
@@ -313,8 +319,10 @@ export function useExam(initialUserId = null) {
     } catch (error) {
       console.error('Progress sync failed:', error.message)
     } finally {
-      screen.value = 'home'
-      progressReady.value = true
+      if (syncId === progressSyncId) {
+        screen.value = 'home'
+        progressReady.value = true
+      }
     }
   }
 
