@@ -4,6 +4,15 @@ import { questions, sections } from '../questions'
 import { supabase } from '../lib/supabase'
 
 const emptyProgress = () => ({ sessions: 0, correct: 0, total: 0, mistakes: [], favorites: [], mastery: {}, history: [], activeQuiz: null })
+const validQuestionIds = new Set(questions.map(question => question.id))
+
+function sanitizeProgress(value = {}) {
+  const sanitized = { ...emptyProgress(), ...value }
+  sanitized.mistakes = sanitized.mistakes.filter(id => validQuestionIds.has(id))
+  sanitized.favorites = sanitized.favorites.filter(id => validQuestionIds.has(id))
+  if (sanitized.activeQuiz?.ids.some(id => !validQuestionIds.has(id))) sanitized.activeQuiz = null
+  return sanitized
+}
 
 export function useExam(initialUserId = null) {
   let userId = initialUserId
@@ -19,7 +28,7 @@ export function useExam(initialUserId = null) {
   const progressReady = ref(false)
   const progressKey = () => userId ? `learnit-progress:${userId}` : 'learnit-progress'
   const stored = JSON.parse(localStorage.getItem(progressKey()) || 'null')
-  const progress = ref({ ...emptyProgress(), ...(stored || {}) })
+  const progress = ref(sanitizeProgress(stored || {}))
   if (progress.value.activeQuiz?.mode === 'exam' && progress.value.activeQuiz.ids.length !== 30) {
     progress.value.activeQuiz = null
     localStorage.setItem(progressKey(), JSON.stringify(progress.value))
@@ -56,7 +65,43 @@ export function useExam(initialUserId = null) {
   })
 
   function shuffle(list) {
-    return [...list].sort(() => Math.random() - 0.5)
+    const result = [...list]
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[result[i], result[j]] = [result[j], result[i]]
+    }
+    return result
+  }
+
+  const familyPatterns = {
+    algorithms: [['sorting', /сортиров/], ['solid', /solid|srp|ocp|lsp|isp|dip/], ['oop', /ооп|класс|объект|наслед|полиморф|инкапсул|абстракц/], ['complexity', /сложност|o\(/], ['code', /код|программ|python|javascript|c\+\+|pl\/i/], ['structures', /стек|очеред|дерев|граф|массив|список/]],
+    databases: [['joins', /join/], ['aggregation', /count|sum|avg|group by|having|агрегат/], ['null', /null/], ['write', /insert|update|delete/], ['structure', /ключ|нормал|таблиц|ddl|create|alter/], ['query', /select|where|order by|between|like|distinct|запрос/]],
+    networks: [['osi', /osi|уровн/], ['subnet', /подсет|маск|broadcast|\/\d{2}/], ['addressing', /ip.?адрес|ipv4|ipv6|адресац/], ['transport', /tcp|udp|порт/], ['services', /dns|dhcp|http|https|arp|icmp/], ['devices', /коммутатор|маршрутизатор|устройств|mac/], ['standards', /ieee|802|ethernet|wi.?fi/]],
+    modeling: [['newton', /ньютон/], ['euler', /эйлер/], ['laplace', /лаплас/], ['stability', /устойчив|сходим|погрешн/], ['model-types', /модел|адекват|имитацион|аналитич/], ['equations', /уравнен|гаусс|численн/]],
+    graphics: [['raster-vector', /растр|вектор|пиксел/], ['formats', /формат|jpeg|png|gif|svg|cdr|psd|tiff/], ['color', /rgb|cmyk|цвет/], ['editors', /photoshop|coreldraw|редактор/], ['print', /dpi|разрешен|печат/], ['tools', /сло|маск|контур|крив/]],
+    information: [['units', /бит|байт|килобайт|мегабайт/], ['text', /текст|кодиров|utf|символ/], ['formats', /формат|расширен|pdf|docx|txt|архив/], ['api', /api|json|xml|http/], ['types', /тип данных|логическ|целочисл/], ['processing', /алгоритм|обработ|резерв|сжат/]],
+    security: [['crypto', /шифр|хеш|крипто/], ['access', /доступ|аутентиф|авториз/], ['threats', /атак|угроз|уязвим/], ['protection', /защит|межсетев|антивирус/]],
+  }
+
+  function questionFamily(question) {
+    const content = `${question.text} ${question.code || ''}`.toLocaleLowerCase('ru')
+    const match = familyPatterns[question.section]?.find(([, pattern]) => pattern.test(content))
+    return `${question.section}:${match?.[0] || content.replace(/[^a-zа-я0-9]+/gi, ' ').split(' ').slice(0, 4).join('-')}`
+  }
+
+  function takeDiverse(candidates, amount, usedFamilies) {
+    const shuffled = shuffle(candidates)
+    const selected = []
+    for (const question of shuffled) {
+      const family = questionFamily(question)
+      if (!usedFamilies.has(family)) {
+        selected.push(question)
+        usedFamilies.add(family)
+      }
+      if (selected.length === amount) return selected
+    }
+    selected.push(...shuffled.filter(question => !selected.includes(question)).slice(0, amount - selected.length))
+    return selected
   }
 
   function allocateCounts(weights, count) {
@@ -70,10 +115,12 @@ export function useExam(initialUserId = null) {
   function balancedPick(pool, count, targets = { surface: .35, understanding: .35, application: .25, trick: .05 }) {
     const allocation = allocateCounts(targets, Math.min(count, pool.length))
     const picked = []
+    const usedFamilies = new Set()
     Object.entries(allocation).forEach(([level, amount]) => {
-      picked.push(...shuffle(pool.filter(question => question.difficulty === level)).slice(0, amount))
+      picked.push(...takeDiverse(pool.filter(question => question.difficulty === level && !picked.includes(question)), amount, usedFamilies))
     })
-    return shuffle([...picked, ...shuffle(pool.filter(question => !picked.includes(question)))]).slice(0, Math.min(count, pool.length))
+    picked.push(...takeDiverse(pool.filter(question => !picked.includes(question)), Math.min(count, pool.length) - picked.length, usedFamilies))
+    return shuffle(picked).slice(0, Math.min(count, pool.length))
   }
 
   function sectionPick(pool, count, section) {
@@ -122,6 +169,11 @@ export function useExam(initialUserId = null) {
     if (kind === 'favorites') {
       pool = questions.filter(question => progress.value.favorites.includes(question.id))
       count = pool.length
+    }
+    if (kind === 'exam') {
+      const recentIds = new Set(progress.value.history.filter(session => session.mode === 'exam').slice(0, 3).flatMap(session => session.questionIds || []))
+      const freshPool = pool.filter(question => !recentIds.has(question.id))
+      if (freshPool.length >= count * 2) pool = freshPool
     }
     if (kind === 'exam' || kind === 'diagnostic') {
       const weights = track.value === 'security'
@@ -245,13 +297,13 @@ export function useExam(initialUserId = null) {
       localStorage.setItem(userKey, saved)
       localStorage.removeItem('learnit-progress')
     }
-    progress.value = { ...emptyProgress(), ...(saved ? JSON.parse(saved) : {}) }
+    progress.value = sanitizeProgress(saved ? JSON.parse(saved) : {})
     try {
       if (nextUserId) {
         const { data, error } = await supabase.from('progress').select('data').eq('user_id', nextUserId).single()
         if (error && error.code !== 'PGRST116') throw error
         if (data?.data) {
-          const remote = { ...emptyProgress(), ...data.data }
+          const remote = sanitizeProgress(data.data)
           if ((remote.sessions || 0) >= progress.value.sessions) {
             progress.value = remote
             localStorage.setItem(userKey, JSON.stringify(progress.value))
