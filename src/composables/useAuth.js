@@ -20,9 +20,22 @@ export function useAuth() {
 
   async function initialize() {
     loading.value = true
-    const { data } = await supabase.auth.getSession()
     try {
+      const params = new URLSearchParams(window.location.search)
+      const tokenHash = params.get('token_hash')
+      if (tokenHash) {
+        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: params.get('type') || 'email' })
+        if (error) throw error
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }
+      const { data } = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase timeout')), 8000)),
+      ])
       await loadProfile(data.session?.user)
+    } catch (error) {
+      console.error('Auth initialization failed:', error.message)
+      currentUser.value = null
     } finally {
       loading.value = false
     }

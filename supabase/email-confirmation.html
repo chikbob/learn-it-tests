@@ -30,7 +30,7 @@
                 <table role="presentation" cellspacing="0" cellpadding="0">
                   <tr>
                     <td style="background:#173f3a;border-radius:5px;">
-                      <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:15px 24px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;">Подтвердить email</a>
+                      <a href="{{ .SiteURL }}/?token_hash={{ .TokenHash }}&amp;type=email" style="display:inline-block;padding:15px 24px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;">Подтвердить email</a>
                     </td>
                   </tr>
                 </table>

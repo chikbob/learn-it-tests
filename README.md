@@ -90,7 +90,7 @@ npm run preview
 3. Добавьте локальный и production-адреса в Redirect URLs, например `http://localhost:5173/**` и `https://learn-it-tests.vercel.app/**`.
 4. Оставьте **Confirm email** включенным — после регистрации пользователь подтверждает адрес по ссылке из письма.
 
-Шаблон письма находится в [`supabase/email-confirmation.html`](./supabase/email-confirmation.html). Вставьте его в **Authentication → Emails → Templates → Confirm signup**, а в поле Subject укажите `Подтвердите регистрацию в LearnIT Tests`.
+Шаблон письма находится в [`supabase/email-confirmation.html`](./supabase/email-confirmation.html). Вставьте его в **Authentication → Emails → Templates → Confirm signup**, а в поле Subject укажите `Подтвердите регистрацию в LearnIT Tests`. Ссылка подтверждения возвращается на домен приложения, чтобы пользователю не требовался прямой доступ к `supabase.co`.
 
 ## Структура проекта
 
