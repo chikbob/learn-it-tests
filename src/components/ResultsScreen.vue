@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main class="results-page">
     <section class="result-hero">
       <p class="eyebrow"><Trophy :size="16" /> Тест завершен</p>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main class="leaderboard-page">
     <div class="leaderboard-header">
       <button class="icon-button" @click="$emit('home')" title="На главную"><ArrowLeft :size="21" /></button>

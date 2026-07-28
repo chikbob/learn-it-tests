@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main class="auth-page">
     <section class="auth-intro">
       <p class="eyebrow"><GraduationCap :size="17" /> LearnIT Tests</p>

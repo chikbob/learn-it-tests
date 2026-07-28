@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main class="quiz-page">
     <div class="quiz-top">
       <button class="icon-button" @click="$emit('home')" title="Выйти"><ArrowLeft :size="21" /></button>

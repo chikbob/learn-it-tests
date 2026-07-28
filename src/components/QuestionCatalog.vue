@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main class="catalog-page">
     <div class="catalog-header">
       <button class="icon-button" @click="$emit('home')" title="На главную"><ArrowLeft :size="21" /></button>
@@ -66,7 +66,7 @@ const filteredQuestions = computed(() => {
 <style scoped>
 .favorites-filter { height: 46px; padding: 0 12px; border: 1px solid #d3dad5; border-radius: 5px; background: white; color: #59645f; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .favorites-filter input { position: absolute; opacity: 0; pointer-events: none; }
-.favorites-filter b { min-width: 23px; height: 23px; margin-left: auto; border-radius: 50%; background: #edf0ed; display: grid; place-items: center; font-size: 10px; }
+.favorites-filter b { min-width: 23px; height: 23px; margin-left: auto; border-radius: 50%; background: #edf0ed; display: grid; place-items: center; font-size: 11px; }
 .favorites-filter.active { color: #8a6812; border-color: #d9b650; background: #fff9e7; }
 .catalog-question summary { grid-template-columns: 38px 1fr 38px 20px; }
 .catalog-favorite { width: 34px; height: 34px; border: 0; border-radius: 4px; background: transparent; color: #85908c; display: grid; place-items: center; cursor: pointer; }

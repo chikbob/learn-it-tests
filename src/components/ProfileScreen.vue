@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main class="profile-page">
     <div class="profile-header">
       <button class="icon-button" @click="$emit('home')" title="На главную"><ArrowLeft :size="21" /></button>
@@ -110,17 +110,17 @@ async function submit() {
 .profile-header { display: flex; gap: 22px; align-items: flex-start; margin-bottom: 36px; }
 .profile-header h1 { font-size: 48px; margin: 8px 0; }
 .account-overview { min-height: 136px; padding: 28px 30px; border-top: 4px solid #e4c570; background: white; display: flex; align-items: center; gap: 20px; }
-.profile-avatar { width: 72px; height: 72px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: #173f3a; color: white; font: 700 31px 'Source Serif 4', serif; }
-.profile-identity { min-width: 0; flex: 1; }.profile-identity > small { color: #2d7f77; font-size: 9px; text-transform: uppercase; font-weight: 800; }.profile-identity h2 { margin: 5px 0 7px; font: 700 28px 'Source Serif 4', serif; }.profile-identity p { margin: 0; color: #66716e; display: flex; align-items: center; gap: 7px; font-size: 12px; overflow-wrap: anywhere; }
-.sync-status { padding: 9px 11px; border: 1px solid #cfe0d9; border-radius: 4px; color: #28704d; background: #edf7f1; display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 800; }
+.profile-avatar { width: 72px; height: 72px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: #173f3a; color: white; font: 700 31px 'Source Serif 4 Variable', serif; }
+.profile-identity { min-width: 0; flex: 1; }.profile-identity > small { color: #2d7f77; font-size: 11px; text-transform: uppercase; font-weight: 800; }.profile-identity h2 { margin: 5px 0 7px; font: 700 28px 'Source Serif 4 Variable', serif; }.profile-identity p { margin: 0; color: #66716e; display: flex; align-items: center; gap: 7px; font-size: 12px; overflow-wrap: anywhere; }
+.sync-status { padding: 9px 11px; border: 1px solid #cfe0d9; border-radius: 4px; color: #28704d; background: #edf7f1; display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 800; }
 .profile-stats { margin: 18px 0 34px; display: grid; grid-template-columns: repeat(4,1fr); border: 1px solid #dce2dd; background: white; }
-.profile-stats > div { min-height: 112px; padding: 20px; border-left: 1px solid #e5e9e5; display: grid; grid-template-columns: 32px 1fr; align-content: center; column-gap: 10px; }.profile-stats > div:first-child { border-left: 0; }.profile-stats span { width: 32px; height: 32px; grid-row: 1/3; display: grid; place-items: center; border-radius: 4px; background: #e9f1ee; color: #2d7f77; }.profile-stats b { font: 700 25px 'Source Serif 4', serif; }.profile-stats small { color: #78817f; font-size: 9px; text-transform: uppercase; font-weight: 700; }
+.profile-stats > div { min-height: 112px; padding: 20px; border-left: 1px solid #e5e9e5; display: grid; grid-template-columns: 32px 1fr; align-content: center; column-gap: 10px; }.profile-stats > div:first-child { border-left: 0; }.profile-stats span { width: 32px; height: 32px; grid-row: 1/3; display: grid; place-items: center; border-radius: 4px; background: #e9f1ee; color: #2d7f77; }.profile-stats b { font: 700 25px 'Source Serif 4 Variable', serif; }.profile-stats small { color: #66716e; font-size: 11px; text-transform: uppercase; font-weight: 700; }
 .settings-section { border-top: 1px solid #dce2dd; padding-top: 30px; display: grid; grid-template-columns: minmax(260px,.8fr) minmax(360px,1.2fr); gap: 55px; }
 .identity-settings { margin-bottom: 34px; }
-.security-copy { display: flex; align-items: flex-start; gap: 13px; }.security-copy > span { width: 42px; height: 42px; flex: 0 0 auto; border-radius: 5px; display: grid; place-items: center; background: #e9f1ee; color: #2d7f77; }.security-copy h2 { margin: 7px 0; font: 700 26px 'Source Serif 4', serif; }.security-copy p:last-child { margin: 0; color: #78817f; font-size: 12px; line-height: 1.65; }
+.security-copy { display: flex; align-items: flex-start; gap: 13px; }.security-copy > span { width: 42px; height: 42px; flex: 0 0 auto; border-radius: 5px; display: grid; place-items: center; background: #e9f1ee; color: #2d7f77; }.security-copy h2 { margin: 7px 0; font: 700 26px 'Source Serif 4 Variable', serif; }.security-copy p:last-child { margin: 0; color: #66716e; font-size: 12px; line-height: 1.65; }
 .password-form { display: grid; gap: 18px; background: white; border: 1px solid #dce2dd; padding: 26px; }
-.password-form label { display: grid; gap: 7px; color: #44504c; font-size: 10px; text-transform: uppercase; font-weight: 800; }
-.password-form input { height: 46px; border: 1px solid #d3dad5; border-radius: 4px; padding: 0 12px; font: 600 14px Manrope, sans-serif; outline: 0; }
+.password-form label { display: grid; gap: 7px; color: #44504c; font-size: 11px; text-transform: uppercase; font-weight: 800; }
+.password-form input { height: 46px; border: 1px solid #d3dad5; border-radius: 4px; padding: 0 12px; font: 600 14px 'Manrope Variable', sans-serif; outline: 0; }
 .password-form input:focus { border-color: #2d7f77; box-shadow: 0 0 0 3px rgba(45,127,119,.1); }
 .profile-message { margin: 0; display: flex; gap: 7px; align-items: center; font-size: 12px; }.profile-message.error { color: #a3423d; }.profile-message.success { color: #28704d; }
 .password-form .primary, .password-form .secondary { justify-self: start; }

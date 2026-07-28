@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main class="home">
     <div class="user-bar">
       <span class="user-avatar">{{ user.name.slice(0, 1).toUpperCase() }}</span>
@@ -108,13 +108,17 @@ function formatDate(value) {
 <style scoped>
 .user-actions { display: flex; align-items: center; gap: 7px; }
 .offline-notice { margin: -22px 0 32px; padding: 12px 14px; border-left: 3px solid #d0a944; background: #fff9e9; color: #5d4b20; display: flex; align-items: center; gap: 10px; }.offline-notice span { display: grid; gap: 2px; font-size: 11px; }.offline-notice b { font-size: 12px; }.history-row small em { margin-left: 10px; color: #9b6f13; display: inline-flex; align-items: center; gap: 4px; font-style: normal; font-weight: 700; }
-.top-action { min-height: 38px; padding: 0 12px; border: 1px solid #bbc7c2; border-radius: 5px; background: transparent; color: #173f3a; display: inline-flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; font-size: 12px; font-weight: 800; }.top-action:hover { background: #edf3f1; }.top-action.admin { color: #80610f; border-color: #d9c47f; }.top-action.logout { width: 38px; padding: 0; color: #8d413b; border-color: #d8c7c3; }
+.top-action { min-height: 42px; padding: 0 13px; border: 1px solid #bbc7c2; border-radius: 5px; background: transparent; color: #173f3a; display: inline-flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; font-size: 12px; font-weight: 800; }.top-action:hover { background: #edf3f1; }.top-action.admin { color: #80610f; border-color: #d9c47f; }.top-action.logout { width: 42px; padding: 0; color: #8d413b; border-color: #d8c7c3; }
 @media (max-width: 760px) {
-  .user-bar { display: grid; grid-template-columns: 38px minmax(60px,1fr) auto; gap: 10px; }
+  .user-bar { display: grid; grid-template-columns: 44px minmax(60px,1fr) auto; gap: 10px; }
   .user-actions { gap: 4px; padding: 3px; border: 1px solid #d5ddd8; border-radius: 6px; background: #fff; }
-  .top-action { width: 36px; height: 36px; min-height: 36px; padding: 0; border: 0; border-radius: 4px; }
+  .top-action { width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 4px; }
   .top-action span { display: none; }
-  .top-action.admin,.top-action.logout { width: 36px; border: 0; }
+  .top-action.admin,.top-action.logout { width: 44px; border: 0; }
   .offline-notice { margin-top: -18px; }.history-row small em { margin: 4px 0 0; display: flex; }
+}
+@media (max-width: 390px) {
+  .user-bar { grid-template-columns: 44px minmax(0,1fr); }
+  .user-actions { grid-column: 1 / -1; justify-content: flex-end; }
 }
 </style>
