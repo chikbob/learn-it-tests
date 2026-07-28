@@ -45,11 +45,24 @@ returns trigger
 language plpgsql
 security definer set search_path = ''
 as $$
+declare
+  generated_display_name text;
+  generated_username text;
 begin
+  generated_display_name := coalesce(
+    nullif(trim(new.raw_user_meta_data ->> 'display_name'), ''),
+    nullif(split_part(new.email, '@', 1), ''),
+    'user'
+  );
+  generated_username := coalesce(
+    nullif(trim(new.raw_user_meta_data ->> 'username_normalized'), ''),
+    lower(generated_display_name) || '-' || left(new.id::text, 8)
+  );
+
   insert into public.profiles (id, display_name, username_normalized)
-  values (new.id, new.raw_user_meta_data ->> 'display_name', new.raw_user_meta_data ->> 'username_normalized');
+  values (new.id, generated_display_name, generated_username);
   insert into public.progress (user_id) values (new.id);
-  insert into public.leaderboard (user_id, display_name) values (new.id, new.raw_user_meta_data ->> 'display_name');
+  insert into public.leaderboard (user_id, display_name) values (new.id, generated_display_name);
   return new;
 end;
 $$;
