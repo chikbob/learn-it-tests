@@ -23,14 +23,28 @@ export function useAuth() {
   const passwordRecovery = ref(new URLSearchParams(window.location.search).has('reset_password'))
   const isAuthenticated = computed(() => Boolean(currentUser.value))
 
+  const profileKey = userId => `learnit-profile:${userId}`
+
   async function loadProfile(user) {
     if (!user) {
       currentUser.value = null
       return null
     }
+    const cached = JSON.parse(localStorage.getItem(profileKey(user.id)) || 'null')
+    if (!navigator.onLine && cached) {
+      currentUser.value = cached
+      return cached
+    }
     const { data, error } = await supabase.from('profiles').select('id, display_name, role').eq('id', user.id).single()
-    if (error) throw new Error('Не удалось загрузить профиль. Проверьте настройку базы данных.')
+    if (error) {
+      if (cached) {
+        currentUser.value = cached
+        return cached
+      }
+      throw new Error('Не удалось загрузить профиль. Проверьте настройку базы данных.')
+    }
     currentUser.value = { id: data.id, name: data.display_name, email: user.email, role: data.role || 'user', isAdmin: data.role === 'admin' }
+    localStorage.setItem(profileKey(user.id), JSON.stringify(currentUser.value))
     return currentUser.value
   }
 
@@ -126,6 +140,7 @@ export function useAuth() {
     const { data, error } = await supabase.rpc('update_display_name', { p_display_name: cleanName })
     if (error) throw new Error('Не удалось изменить имя. Попробуйте еще раз.')
     currentUser.value = { ...currentUser.value, name: data }
+    localStorage.setItem(profileKey(currentUser.value.id), JSON.stringify(currentUser.value))
     return data
   }
 

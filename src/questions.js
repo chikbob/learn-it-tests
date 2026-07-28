@@ -1,3 +1,5 @@
+import { additionalQuestions } from './additionalQuestions.js'
+
 export const sections = {
   algorithms: { label: 'Алгоритмы', short: 'Алгоритмы', color: '#e46f50' },
   databases: { label: 'Базы данных и SQL', short: 'SQL', color: '#2d7f77' },
@@ -187,12 +189,13 @@ const questionBank = [
   q(172, 'networks', 'understanding', 'Что обеспечивает маска подсети?', ['Отделяет биты сети от битов узла', 'Шифрует IP-пакет', 'Заменяет MAC-адрес', 'Определяет номер TCP-порта'], 0, 'Маска позволяет определить сетевую часть IP-адреса и границы подсети.'),
   q(173, 'networks', 'surface', 'Какое семейство стандартов IEEE описывает локальные и городские сети?', ['IEEE 754', 'IEEE 802', 'ISO 9001', 'RFC 1918'], 1, 'Семейство IEEE 802 включает стандарты Ethernet, Wi-Fi и другие технологии LAN/MAN.'),
   q(174, 'networks', 'understanding', 'На каком уровне OSI работают TCP и UDP?', ['Канальном', 'Сетевом', 'Транспортном', 'Прикладном'], 2, 'TCP и UDP являются транспортными протоколами четвертого уровня OSI.'),
+  ...additionalQuestions,
 ]
 
 const normalizedQuestionKey = question => `${question.text}\n${question.code || ''}`
   .toLocaleLowerCase('ru')
   .replaceAll('ё', 'е')
-  .replace(/[^a-zа-я0-9]+/gi, ' ')
+  .replace(/[^\p{L}\p{N}]+/gu, ' ')
   .trim()
 
 const seenQuestions = new Set()

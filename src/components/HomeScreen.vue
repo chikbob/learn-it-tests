@@ -10,6 +10,11 @@
         <button class="top-action logout" @click="$emit('logout')" title="Выйти из аккаунта"><LogOut :size="18" /></button>
       </div>
     </div>
+    <div v-if="!isOnline || pendingSyncCount" class="offline-notice" role="status">
+      <WifiOff v-if="!isOnline" :size="18" />
+      <CloudUpload v-else :size="18" />
+      <span><b>{{ isOnline ? 'Загружаем результаты' : 'Работаем офлайн' }}</b>{{ isOnline ? 'История синхронизируется с аккаунтом.' : 'Можно проходить тесты. Результаты загрузятся, когда появится интернет.' }}</span>
+    </div>
     <section class="intro">
       <div>
         <p class="eyebrow"><Sparkles :size="16" /> Подготовка к магистратуре</p>
@@ -74,7 +79,7 @@
       <div class="history-list">
         <button v-for="session in filteredHistory.slice(0, 12)" :key="session.id" class="history-row" @click="$emit('review', session)">
           <span>{{ formatDate(session.date) }}</span>
-          <strong>{{ modeLabel(session.mode) }}<small>{{ session.track === 'security' ? 'ИБ' : 'ИТ' }}<template v-if="session.topic"> · {{ sections[session.topic].short }}</template></small></strong>
+          <strong>{{ modeLabel(session.mode) }}<small>{{ session.track === 'security' ? 'ИБ' : 'ИТ' }}<template v-if="session.topic"> · {{ sections[session.topic].short }}</template><em v-if="session.syncStatus === 'pending'"><CloudUpload :size="12" /> Загрузится при подключении к интернету</em></small></strong>
           <b>{{ session.grade ? `${session.grade} б.` : `${session.score}/${session.total}` }}</b>
           <i>{{ Math.round(session.score / session.total * 100) }}% <ChevronRight :size="15" /></i>
         </button>
@@ -86,10 +91,10 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { ArrowRight, BookOpen, ChevronRight, Clock3, History, LibraryBig, LogOut, RotateCcw, Settings, ShieldCheck, Sparkles, Trash2, Trophy, UserRound } from 'lucide-vue-next'
+import { ArrowRight, BookOpen, ChevronRight, Clock3, CloudUpload, History, LibraryBig, LogOut, RotateCcw, Settings, ShieldCheck, Sparkles, Trash2, Trophy, UserRound, WifiOff } from 'lucide-vue-next'
 import { sections } from '../questions'
 
-const props = defineProps({ user: Object, progress: Object, totalAccuracy: Number, modes: Array, track: String, mode: String, selectedSection: String, availableSections: Array, modeLabel: Function })
+const props = defineProps({ user: Object, progress: Object, totalAccuracy: Number, modes: Array, track: String, mode: String, selectedSection: String, availableSections: Array, modeLabel: Function, isOnline: Boolean, syncing: Boolean, pendingSyncCount: Number })
 defineEmits(['update:track', 'update:mode', 'update:selectedSection', 'start', 'resume', 'mistakes', 'catalog', 'clear', 'review', 'leaderboard', 'profile', 'admin', 'logout'])
 
 const historyMode = ref('all')
@@ -102,6 +107,7 @@ function formatDate(value) {
 
 <style scoped>
 .user-actions { display: flex; align-items: center; gap: 7px; }
+.offline-notice { margin: -22px 0 32px; padding: 12px 14px; border-left: 3px solid #d0a944; background: #fff9e9; color: #5d4b20; display: flex; align-items: center; gap: 10px; }.offline-notice span { display: grid; gap: 2px; font-size: 11px; }.offline-notice b { font-size: 12px; }.history-row small em { margin-left: 10px; color: #9b6f13; display: inline-flex; align-items: center; gap: 4px; font-style: normal; font-weight: 700; }
 .top-action { min-height: 38px; padding: 0 12px; border: 1px solid #bbc7c2; border-radius: 5px; background: transparent; color: #173f3a; display: inline-flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; font-size: 12px; font-weight: 800; }.top-action:hover { background: #edf3f1; }.top-action.admin { color: #80610f; border-color: #d9c47f; }.top-action.logout { width: 38px; padding: 0; color: #8d413b; border-color: #d8c7c3; }
 @media (max-width: 760px) {
   .user-bar { display: grid; grid-template-columns: 38px minmax(60px,1fr) auto; gap: 10px; }
@@ -109,5 +115,6 @@ function formatDate(value) {
   .top-action { width: 36px; height: 36px; min-height: 36px; padding: 0; border: 0; border-radius: 4px; }
   .top-action span { display: none; }
   .top-action.admin,.top-action.logout { width: 36px; border: 0; }
+  .offline-notice { margin-top: -18px; }.history-row small em { margin: 4px 0 0; display: flex; }
 }
 </style>

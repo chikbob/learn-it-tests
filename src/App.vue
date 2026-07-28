@@ -14,6 +14,9 @@
       :selected-section="selectedSection"
       :available-sections="availableSections"
       :mode-label="modeLabel"
+      :is-online="isOnline"
+      :syncing="syncing"
+      :pending-sync-count="pendingSyncCount"
       @update:track="setTrack"
       @update:mode="mode = $event"
       @update:selected-section="selectedSection = $event"
@@ -83,7 +86,7 @@ import { useExam } from './composables/useExam'
 import { useAuth } from './composables/useAuth'
 
 const { currentUser, leaderboard, loading: authLoading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, loadAdminUsers, requestPasswordReset, updatePassword, updateDisplayName } = useAuth()
-const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel } = useExam(currentUser.value?.id)
+const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, isOnline, syncing, pendingSyncCount, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel } = useExam(currentUser.value?.id)
 
 watch(() => currentUser.value?.id || null, async userId => {
   await setUser(userId)
