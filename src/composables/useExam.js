@@ -1,10 +1,12 @@
 import { computed, ref } from 'vue'
 import { BookOpen, Clock3, Target } from 'lucide-vue-next'
 import { questions, sections } from '../questions'
+import { supabase } from '../lib/supabase'
 
 const emptyProgress = () => ({ sessions: 0, correct: 0, total: 0, mistakes: [], mastery: {}, history: [], activeQuiz: null })
 
-export function useExam() {
+export function useExam(initialUserId = null) {
+  let userId = initialUserId
   const screen = ref('home')
   const track = ref('it')
   const selectedSection = ref('networks')
@@ -14,11 +16,12 @@ export function useExam() {
   const selected = ref(null)
   const answers = ref([])
   const reviewSession = ref(null)
-  const stored = JSON.parse(localStorage.getItem('learnit-progress') || 'null')
+  const progressKey = () => userId ? `learnit-progress:${userId}` : 'learnit-progress'
+  const stored = JSON.parse(localStorage.getItem(progressKey()) || 'null')
   const progress = ref({ ...emptyProgress(), ...(stored || {}) })
   if (progress.value.activeQuiz?.mode === 'exam' && progress.value.activeQuiz.ids.length !== 30) {
     progress.value.activeQuiz = null
-    localStorage.setItem('learnit-progress', JSON.stringify(progress.value))
+    localStorage.setItem(progressKey(), JSON.stringify(progress.value))
   }
 
   const modes = [
@@ -87,7 +90,24 @@ export function useExam() {
   }
 
   function persist() {
-    localStorage.setItem('learnit-progress', JSON.stringify(progress.value))
+    localStorage.setItem(progressKey(), JSON.stringify(progress.value))
+    if (userId) {
+      const ownerId = userId
+      const snapshot = JSON.parse(JSON.stringify(progress.value))
+      void supabase.from('progress').upsert({ user_id: ownerId, data: snapshot, updated_at: new Date().toISOString() }).then(({ error }) => {
+        if (error) console.error('Progress sync failed:', error.message)
+      })
+    }
+  }
+
+  function syncLeaderboard() {
+    if (!userId) return
+    const exams = progress.value.history.filter(session => session.mode === 'exam')
+    const bestGrade = exams.length ? Math.max(...exams.map(session => session.grade || Math.max(1, Math.round(session.score / session.total * 100)))) : 0
+    const accuracy = progress.value.total ? Math.round(progress.value.correct / progress.value.total * 100) : 0
+    void supabase.from('leaderboard').update({ best_grade: bestGrade, accuracy, sessions: progress.value.sessions, updated_at: new Date().toISOString() }).eq('user_id', userId).then(({ error }) => {
+      if (error) console.error('Leaderboard sync failed:', error.message)
+    })
   }
 
   function startQuiz(kind = mode.value) {
@@ -172,6 +192,7 @@ export function useExam() {
       activeQuiz: null,
     }
     persist()
+    syncLeaderboard()
     screen.value = 'results'
   }
 
@@ -196,10 +217,38 @@ export function useExam() {
     if (value === 'it' && selectedSection.value === 'security') selectedSection.value = 'networks'
   }
 
+  async function setUser(nextUserId) {
+    userId = nextUserId
+    quiz.value = []
+    answers.value = []
+    reviewSession.value = null
+    const userKey = progressKey()
+    let saved = localStorage.getItem(userKey)
+    if (!saved && nextUserId && localStorage.getItem('learnit-progress')) {
+      saved = localStorage.getItem('learnit-progress')
+      localStorage.setItem(userKey, saved)
+      localStorage.removeItem('learnit-progress')
+    }
+    progress.value = { ...emptyProgress(), ...(saved ? JSON.parse(saved) : {}) }
+    screen.value = 'home'
+    if (nextUserId) {
+      const { data, error } = await supabase.from('progress').select('data').eq('user_id', nextUserId).single()
+      if (!error && data?.data) {
+        const remote = { ...emptyProgress(), ...data.data }
+        if ((remote.sessions || 0) >= progress.value.sessions) {
+          progress.value = remote
+          localStorage.setItem(userKey, JSON.stringify(progress.value))
+        } else persist()
+      }
+    }
+  }
+
   function clearProgress() {
     if (!window.confirm('Удалить историю, результаты и журнал ошибок?')) return
     progress.value = emptyProgress()
-    localStorage.removeItem('learnit-progress')
+    localStorage.removeItem(progressKey())
+    persist()
+    syncLeaderboard()
     screen.value = 'home'
   }
 
@@ -207,5 +256,5 @@ export function useExam() {
     return modes.find(item => item.id === id)?.title || 'Работа над ошибками'
   }
 
-  return { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, clearProgress, modeLabel }
+  return { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, modeLabel }
 }

@@ -1,5 +1,11 @@
 <template>
   <main class="home">
+    <div class="user-bar">
+      <span class="user-avatar">{{ user.name.slice(0, 1).toUpperCase() }}</span>
+      <span><small>Аккаунт</small><strong>{{ user.name }}</strong></span>
+      <button class="secondary" @click="$emit('leaderboard')"><Trophy :size="17" /> Лидеры</button>
+      <button class="icon-button" @click="$emit('logout')" title="Выйти из аккаунта"><LogOut :size="18" /></button>
+    </div>
     <section class="intro">
       <div>
         <p class="eyebrow"><Sparkles :size="16" /> Подготовка к магистратуре</p>
@@ -75,11 +81,11 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { ArrowRight, BookOpen, ChevronRight, Clock3, History, LibraryBig, RotateCcw, ShieldCheck, Sparkles, Trash2 } from 'lucide-vue-next'
+import { ArrowRight, BookOpen, ChevronRight, Clock3, History, LibraryBig, LogOut, RotateCcw, ShieldCheck, Sparkles, Trash2, Trophy } from 'lucide-vue-next'
 import { sections } from '../questions'
 
-const props = defineProps({ progress: Object, totalAccuracy: Number, modes: Array, track: String, mode: String, selectedSection: String, availableSections: Array, modeLabel: Function })
-defineEmits(['update:track', 'update:mode', 'update:selectedSection', 'start', 'resume', 'mistakes', 'catalog', 'clear', 'review'])
+const props = defineProps({ user: Object, progress: Object, totalAccuracy: Number, modes: Array, track: String, mode: String, selectedSection: String, availableSections: Array, modeLabel: Function })
+defineEmits(['update:track', 'update:mode', 'update:selectedSection', 'start', 'resume', 'mistakes', 'catalog', 'clear', 'review', 'leaderboard', 'logout'])
 
 const historyMode = ref('all')
 const filteredHistory = computed(() => props.progress.history.filter(session => historyMode.value === 'all' || session.mode === historyMode.value))

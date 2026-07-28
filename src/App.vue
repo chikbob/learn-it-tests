@@ -1,7 +1,10 @@
 <template>
   <div class="app-shell">
+    <main v-if="authLoading" class="loading-page"><span></span><p>Загружаем аккаунт…</p></main>
+    <AuthScreen v-else-if="!currentUser" :login="login" :register="register" @authenticated="handleAuthenticated" />
     <HomeScreen
-      v-if="screen === 'home'"
+      v-else-if="screen === 'home'"
+      :user="currentUser"
       :progress="progress"
       :total-accuracy="totalAccuracy"
       :modes="modes"
@@ -19,7 +22,10 @@
       @catalog="screen = 'catalog'"
       @clear="clearProgress"
       @review="openHistory"
+      @leaderboard="showLeaderboard"
+      @logout="handleLogout"
     />
+    <LeaderboardScreen v-else-if="screen === 'leaderboard'" :players="leaderboard" :current-user="currentUser" @home="goHome" />
     <QuizScreen
       v-else-if="screen === 'quiz' && current"
       :current="current"
@@ -55,11 +61,33 @@
 </template>
 
 <script setup>
+import AuthScreen from './components/AuthScreen.vue'
 import HomeScreen from './components/HomeScreen.vue'
+import LeaderboardScreen from './components/LeaderboardScreen.vue'
 import QuestionCatalog from './components/QuestionCatalog.vue'
 import QuizScreen from './components/QuizScreen.vue'
 import ResultsScreen from './components/ResultsScreen.vue'
 import { useExam } from './composables/useExam'
+import { useAuth } from './composables/useAuth'
 
-const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, clearProgress, modeLabel } = useExam()
+const { currentUser, leaderboard, loading: authLoading, initialize, register, login, logout, refreshLeaderboard } = useAuth()
+const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, modeLabel } = useExam(currentUser.value?.id)
+
+initialize().then(() => {
+  if (currentUser.value) setUser(currentUser.value.id)
+})
+
+function handleAuthenticated(account) {
+  setUser(account.id)
+}
+
+async function handleLogout() {
+  await logout()
+  setUser(null)
+}
+
+async function showLeaderboard() {
+  await refreshLeaderboard()
+  screen.value = 'leaderboard'
+}
 </script>
