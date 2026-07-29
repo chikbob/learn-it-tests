@@ -38,12 +38,24 @@
       </details>
       <p v-if="!filteredQuestions.length" class="empty-state">По этому запросу вопросов не найдено.</p>
     </div>
+    <Transition name="scroll-top">
+      <button
+        v-if="showScrollTop"
+        class="scroll-top-button"
+        type="button"
+        title="Вернуться наверх"
+        aria-label="Вернуться наверх"
+        @click="scrollToTop"
+      >
+        <ArrowUp :size="21" />
+      </button>
+    </Transition>
   </main>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { ArrowLeft, ChevronRight, LibraryBig, Search, Star } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { ArrowLeft, ArrowUp, ChevronRight, LibraryBig, Search, Star } from 'lucide-vue-next'
 import { difficultyLabels, questions, sections } from '../questions'
 
 const props = defineProps({ favorites: { type: Array, default: () => [] } })
@@ -53,6 +65,26 @@ const search = ref('')
 const sectionFilter = ref('all')
 const difficultyFilter = ref('all')
 const favoritesOnly = ref(false)
+const showScrollTop = ref(false)
+
+const updateScrollTopVisibility = () => {
+  showScrollTop.value = window.scrollY > 500
+}
+
+const scrollToTop = () => {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
+}
+
+onMounted(() => {
+  updateScrollTopVisibility()
+  window.addEventListener('scroll', updateScrollTopVisibility, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', updateScrollTopVisibility)
+})
+
 const filteredQuestions = computed(() => {
   const needle = search.value.trim().toLocaleLowerCase('ru')
   return questions.filter(question => {
@@ -71,5 +103,12 @@ const filteredQuestions = computed(() => {
 .catalog-question summary { grid-template-columns: 38px 1fr 38px 20px; }
 .catalog-favorite { width: 34px; height: 34px; border: 0; border-radius: 4px; background: transparent; color: #85908c; display: grid; place-items: center; cursor: pointer; }
 .catalog-favorite:hover, .catalog-favorite.active { color: #a47b18; background: #fff6d9; }
-@media (max-width: 760px) { .catalog-question summary { grid-template-columns: 34px 1fr 34px 18px; } }
+.scroll-top-button { position: fixed; right: max(24px, calc((100vw - 1050px) / 2 - 64px)); bottom: 28px; z-index: 10; width: 48px; height: 48px; border: 1px solid #246d66; border-radius: 50%; background: #2d7f77; color: white; box-shadow: 0 8px 24px rgba(23, 63, 58, .22); display: grid; place-items: center; cursor: pointer; }
+.scroll-top-button:hover { background: #246d66; box-shadow: 0 10px 28px rgba(23, 63, 58, .3); transform: translateY(-2px); }
+.scroll-top-enter-active, .scroll-top-leave-active { transition: opacity .2s ease, transform .2s ease; }
+.scroll-top-enter-from, .scroll-top-leave-to { opacity: 0; transform: translateY(10px); }
+@media (max-width: 760px) {
+  .catalog-question summary { grid-template-columns: 34px 1fr 34px 18px; }
+  .scroll-top-button { right: 16px; bottom: 18px; width: 46px; height: 46px; }
+}
 </style>
