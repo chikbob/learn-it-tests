@@ -1,4 +1,5 @@
 import { additionalQuestions } from './additionalQuestions.js'
+import { consultationQuestions } from './consultationQuestions.js'
 
 export const sections = {
   algorithms: { label: 'Алгоритмы', short: 'Алгоритмы', color: '#e46f50' },
@@ -190,6 +191,7 @@ const questionBank = [
   q(173, 'networks', 'surface', 'Какое семейство стандартов IEEE описывает локальные и городские сети?', ['IEEE 754', 'IEEE 802', 'ISO 9001', 'RFC 1918'], 1, 'Семейство IEEE 802 включает стандарты Ethernet, Wi-Fi и другие технологии LAN/MAN.'),
   q(174, 'networks', 'understanding', 'На каком уровне OSI работают TCP и UDP?', ['Канальном', 'Сетевом', 'Транспортном', 'Прикладном'], 2, 'TCP и UDP являются транспортными протоколами четвертого уровня OSI.'),
   ...additionalQuestions,
+  ...consultationQuestions,
 ]
 
 const normalizedQuestionKey = question => `${question.text}\n${question.code || ''}`
