@@ -101,7 +101,6 @@ export function useExam(initialUserId = null) {
   }
 
   function questionFamily(question) {
-    if (question.family) return question.family
     const content = `${question.text} ${question.code || ''}`.toLocaleLowerCase('ru')
     const match = familyPatterns[question.section]?.find(([, pattern]) => pattern.test(content))
     return `${question.section}:${match?.[0] || content.replace(/[^a-zа-я0-9]+/gi, ' ').split(' ').slice(0, 4).join('-')}`
