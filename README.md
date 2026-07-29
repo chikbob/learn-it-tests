@@ -6,7 +6,7 @@
 
 [![Vue 3](https://img.shields.io/badge/Vue-3.5-42b883?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
 [![Vite](https://img.shields.io/badge/Vite-6.0-646cff?logo=vite&logoColor=white)](https://vite.dev/)
-[![Questions](https://img.shields.io/badge/вопросов-213-247a70)](./src/questions.js)
+[![Questions](https://img.shields.io/badge/вопросов-1193-247a70)](./src/questions.js)
 [![Exam](https://img.shields.io/badge/симуляция-30_вопросов-e4b94f)](#возможности)
 
 Тренажер по программе вступительного экзамена для направлений  
@@ -116,6 +116,7 @@ src/
 ├── lib/supabase.js          # клиент Supabase
 ├── App.vue                  # переключение экранов
 ├── additionalQuestions.js  # дополнительные вопросы по пробелам программы
+├── conceptQuestionBank.js   # большой концептуальный банк по программе экзамена
 ├── questions.js             # основной банк вопросов
 └── style.css                # общие стили
 ```
