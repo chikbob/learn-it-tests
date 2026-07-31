@@ -159,7 +159,7 @@ function difficultyFor(text) {
 }
 
 const questions = rawQuestions.map((question, offset) => {
-  const id = 10000 + offset
+  const id = offset + 1
   const options = [question.answer]
   const candidates = [
     ...question.variants,
@@ -193,7 +193,7 @@ const questions = rawQuestions.map((question, offset) => {
 const moduleBody = `// Сгенерировано из актуальных файлов консультации. Не редактировать вручную.\nexport const builtInQuestions = ${JSON.stringify(questions, null, 2)}\n`
 fs.writeFileSync(path.join(root, 'src/generatedQuestions.js'), moduleBody)
 
-const seedJson = JSON.stringify(questions)
+const seedJson = JSON.stringify(questions.map(({ id: _id, ...question }) => question))
 const migrationSql = `begin;
 
 create table if not exists public.questions (
@@ -238,9 +238,8 @@ grant usage, select on sequence public.questions_id_seq to authenticated;
 
 truncate table public.questions restart identity;
 
-insert into public.questions (id, section, difficulty, text, options, correct, explanation, code, position)
+insert into public.questions (section, difficulty, text, options, correct, explanation, code, position)
 select
-  seed.id,
   seed.section,
   seed.difficulty,
   seed.text,
@@ -252,7 +251,6 @@ select
 from jsonb_to_recordset(
   $question_seed$${seedJson}$question_seed$::jsonb
 ) as seed (
-  id bigint,
   section text,
   difficulty text,
   text text,
@@ -262,8 +260,6 @@ from jsonb_to_recordset(
   code text,
   position integer
 );
-
-select setval(pg_get_serial_sequence('public.questions', 'id'), (select max(id) from public.questions));
 
 commit;
 `

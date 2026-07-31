@@ -4,21 +4,26 @@ import { questions, sections } from '../questions'
 import { supabase } from '../lib/supabase'
 import { readJson, writeJson } from '../lib/storage'
 
-const emptyProgress = () => ({ sessions: 0, correct: 0, total: 0, mistakes: [], favorites: [], mastery: {}, history: [], activeQuiz: null, pendingSimulations: [] })
+const questionBankVersion = 2
+const emptyProgress = () => ({ questionBankVersion, sessions: 0, correct: 0, total: 0, mistakes: [], favorites: [], mastery: {}, history: [], activeQuiz: null, pendingSimulations: [] })
 const hasQuestion = questionId => questions.some(question => question.id === questionId)
 
 function sanitizeProgress(value = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) value = {}
+  const bankChanged = value.questionBankVersion !== questionBankVersion
   const sanitized = { ...emptyProgress(), ...value }
+  sanitized.questionBankVersion = questionBankVersion
   sanitized.sessions = Number.isSafeInteger(sanitized.sessions) && sanitized.sessions >= 0 ? sanitized.sessions : 0
   sanitized.correct = Number.isSafeInteger(sanitized.correct) && sanitized.correct >= 0 ? sanitized.correct : 0
   sanitized.total = Number.isSafeInteger(sanitized.total) && sanitized.total >= sanitized.correct ? sanitized.total : sanitized.correct
-  sanitized.mistakes = Array.isArray(sanitized.mistakes) ? sanitized.mistakes.filter(hasQuestion) : []
-  sanitized.favorites = Array.isArray(sanitized.favorites) ? sanitized.favorites.filter(hasQuestion) : []
-  sanitized.mastery = sanitized.mastery && typeof sanitized.mastery === 'object' && !Array.isArray(sanitized.mastery) ? sanitized.mastery : {}
-  sanitized.history = Array.isArray(sanitized.history) ? sanitized.history : []
+  sanitized.mistakes = !bankChanged && Array.isArray(sanitized.mistakes) ? sanitized.mistakes.filter(hasQuestion) : []
+  sanitized.favorites = !bankChanged && Array.isArray(sanitized.favorites) ? sanitized.favorites.filter(hasQuestion) : []
+  sanitized.mastery = !bankChanged && sanitized.mastery && typeof sanitized.mastery === 'object' && !Array.isArray(sanitized.mastery) ? sanitized.mastery : {}
+  sanitized.history = Array.isArray(sanitized.history)
+    ? sanitized.history.map(session => bankChanged ? { ...session, questionIds: [], answers: [] } : session)
+    : []
   sanitized.pendingSimulations = Array.isArray(sanitized.pendingSimulations) ? sanitized.pendingSimulations : []
-  if (sanitized.activeQuiz?.ids.some(id => !hasQuestion(id))) sanitized.activeQuiz = null
+  if (bankChanged || sanitized.activeQuiz?.ids.some(id => !hasQuestion(id))) sanitized.activeQuiz = null
   return sanitized
 }
 
