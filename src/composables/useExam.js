@@ -3,6 +3,7 @@ import { BookOpen, Clock3, Star, Target } from 'lucide-vue-next'
 import { questions, sections } from '../questions'
 import { supabase } from '../lib/supabase'
 import { readJson, writeJson } from '../lib/storage'
+import { updateMistakeProgress } from '../lib/mistakeProgress'
 
 const questionBankVersion = 2
 const emptyProgress = () => ({ questionBankVersion, sessions: 0, correct: 0, total: 0, mistakes: [], favorites: [], mastery: {}, history: [], activeQuiz: null, pendingSimulations: [] })
@@ -330,22 +331,20 @@ export function useExam(initialUserId = null) {
     const attemptId = Date.now()
     const completedMode = mode.value
     const completedGrade = examGrade.value
-    const wrongIds = wrongQuestions.value.map(question => question.id)
-    const resolved = quiz.value.filter((question, i) => answers.value[i] === question.correct).map(question => question.id)
-    const mastery = { ...progress.value.mastery }
-    wrongIds.forEach(id => { mastery[id] = 0 })
-    resolved.forEach(id => {
-      if (progress.value.mistakes.includes(id)) mastery[id] = (mastery[id] || 0) + 1
-    })
-    const remainingMistakes = [...new Set([...progress.value.mistakes, ...wrongIds])].filter(id => (mastery[id] || 0) < 2)
+    const mistakeProgress = updateMistakeProgress(
+      progress.value.mistakes,
+      progress.value.mastery,
+      quiz.value.map((question, i) => ({ id: question.id, correct: answers.value[i] === question.correct })),
+      completedMode,
+    )
     const sectionResults = Object.fromEntries(resultsBySection.value.map(row => [row.key, { correct: row.correct, total: row.total }]))
     progress.value = {
       sessions: progress.value.sessions + 1,
       correct: progress.value.correct + sessionScore.value,
       total: progress.value.total + quiz.value.length,
-      mistakes: remainingMistakes,
+      mistakes: mistakeProgress.mistakes,
       favorites: [...progress.value.favorites],
-      mastery,
+      mastery: mistakeProgress.mastery,
       history: [{ id: attemptId, date: new Date().toISOString(), mode: completedMode, track: track.value, topic: completedMode === 'thematic' ? selectedSection.value : null, score: sessionScore.value, grade: completedMode === 'exam' ? completedGrade : null, total: quiz.value.length, sections: sectionResults, questionIds: quiz.value.map(question => question.id), answers: [...answers.value], syncStatus: 'pending' }, ...progress.value.history].slice(0, 50),
       activeQuiz: null,
       pendingSimulations: completedMode === 'exam' ? [...progress.value.pendingSimulations, { id: attemptId, grade: completedGrade }] : [...progress.value.pendingSimulations],
