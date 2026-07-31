@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { readJson, writeJson } from '../lib/storage'
 
 const emptyProgress = () => ({ sessions: 0, correct: 0, total: 0, mistakes: [], favorites: [], mastery: {}, history: [], activeQuiz: null, pendingSimulations: [] })
-const validQuestionIds = new Set(questions.map(question => question.id))
+const hasQuestion = questionId => questions.some(question => question.id === questionId)
 
 function sanitizeProgress(value = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) value = {}
@@ -13,12 +13,12 @@ function sanitizeProgress(value = {}) {
   sanitized.sessions = Number.isSafeInteger(sanitized.sessions) && sanitized.sessions >= 0 ? sanitized.sessions : 0
   sanitized.correct = Number.isSafeInteger(sanitized.correct) && sanitized.correct >= 0 ? sanitized.correct : 0
   sanitized.total = Number.isSafeInteger(sanitized.total) && sanitized.total >= sanitized.correct ? sanitized.total : sanitized.correct
-  sanitized.mistakes = Array.isArray(sanitized.mistakes) ? sanitized.mistakes.filter(id => validQuestionIds.has(id)) : []
-  sanitized.favorites = Array.isArray(sanitized.favorites) ? sanitized.favorites.filter(id => validQuestionIds.has(id)) : []
+  sanitized.mistakes = Array.isArray(sanitized.mistakes) ? sanitized.mistakes.filter(hasQuestion) : []
+  sanitized.favorites = Array.isArray(sanitized.favorites) ? sanitized.favorites.filter(hasQuestion) : []
   sanitized.mastery = sanitized.mastery && typeof sanitized.mastery === 'object' && !Array.isArray(sanitized.mastery) ? sanitized.mastery : {}
   sanitized.history = Array.isArray(sanitized.history) ? sanitized.history : []
   sanitized.pendingSimulations = Array.isArray(sanitized.pendingSimulations) ? sanitized.pendingSimulations : []
-  if (sanitized.activeQuiz?.ids.some(id => !validQuestionIds.has(id))) sanitized.activeQuiz = null
+  if (sanitized.activeQuiz?.ids.some(id => !hasQuestion(id))) sanitized.activeQuiz = null
   return sanitized
 }
 
@@ -97,6 +97,7 @@ export function useExam(initialUserId = null) {
     modeling: [['newton', /ньютон/], ['euler', /эйлер/], ['laplace', /лаплас/], ['stability', /устойчив|сходим|погрешн/], ['model-types', /модел|адекват|имитацион|аналитич/], ['equations', /уравнен|гаусс|численн/]],
     graphics: [['raster-vector', /растр|вектор|пиксел/], ['formats', /формат|jpeg|png|gif|svg|cdr|psd|tiff/], ['color', /rgb|cmyk|цвет/], ['editors', /photoshop|coreldraw|редактор/], ['print', /dpi|разрешен|печат/], ['tools', /сло|маск|контур|крив/]],
     information: [['units', /бит|байт|килобайт|мегабайт/], ['text', /текст|кодиров|utf|символ/], ['formats', /формат|расширен|pdf|docx|txt|архив/], ['api', /api|json|xml|http/], ['types', /тип данных|логическ|целочисл/], ['processing', /алгоритм|обработ|резерв|сжат/]],
+    systems: [['structure', /структур|элемент|связ|иерарх/], ['analysis', /анализ|декомпоз|синтез/], ['control', /управлен|обратн|воздейств/], ['models', /модел|черн|бел|сер.*ящик/], ['properties', /эмерджент|целост|устойчив|эффектив/]],
     security: [['crypto', /шифр|хеш|крипто/], ['access', /доступ|аутентиф|авториз/], ['threats', /атак|угроз|уязвим/], ['protection', /защит|межсетев|антивирус/]],
   }
 
@@ -270,8 +271,8 @@ export function useExam(initialUserId = null) {
     }
     if (kind === 'exam' || kind === 'diagnostic') {
       const weights = track.value === 'security'
-        ? { security: .24, databases: .20, algorithms: .20, modeling: .14, networks: .10, information: .07, graphics: .05 }
-        : { networks: .24, databases: .22, algorithms: .22, modeling: .16, graphics: .08, information: .08 }
+        ? { security: .22, algorithms: .18, databases: .16, systems: .12, networks: .12, modeling: .08, information: .07, graphics: .05 }
+        : { algorithms: .22, databases: .18, systems: .16, networks: .16, modeling: .12, graphics: .08, information: .08 }
       quiz.value = weightedPool(pool, weights, count)
     } else if (kind === 'thematic') quiz.value = sectionPick(pool, count, selectedSection.value)
     else quiz.value = balancedPick(pool, count)

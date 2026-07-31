@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "questions:generate": "node scripts/generate-question-bank.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -84,11 +84,13 @@ import ResultsScreen from './components/ResultsScreen.vue'
 import { watch } from 'vue'
 import { useExam } from './composables/useExam'
 import { useAuth } from './composables/useAuth'
+import { loadQuestions } from './lib/questionRepository'
 
 const { currentUser, leaderboard, loading: authLoading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, loadAdminUsers, requestPasswordReset, updatePassword, updateDisplayName } = useAuth()
 const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, isOnline, syncing, pendingSyncCount, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel } = useExam(currentUser.value?.id)
 
 watch(() => currentUser.value?.id || null, async userId => {
+  if (userId) await loadQuestions()
   await setUser(userId)
   if (userId && passwordRecovery.value) screen.value = 'profile'
   else if (userId && currentUser.value?.isAdmin) screen.value = 'admin'

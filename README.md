@@ -6,7 +6,7 @@
 
 [![Vue 3](https://img.shields.io/badge/Vue-3.5-42b883?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
 [![Vite](https://img.shields.io/badge/Vite-6.0-646cff?logo=vite&logoColor=white)](https://vite.dev/)
-[![Questions](https://img.shields.io/badge/вопросов-249-247a70)](./src/questions.js)
+[![Questions](https://img.shields.io/badge/вопросов-429-247a70)](./src/questions.js)
 [![Exam](https://img.shields.io/badge/симуляция-30_вопросов-e4b94f)](#возможности)
 
 Тренажер по программе вступительного экзамена для направлений  
@@ -30,6 +30,7 @@
 - **Аккаунты Supabase** — история, прогресс и ошибки синхронизируются между устройствами.
 - **Общая таблица лидеров** — рейтинг по среднему баллу всех симуляций.
 - **Два направления** — отдельное распределение тем для ИТ и ИБ.
+- **Администрирование вопросов** — создание, просмотр, изменение и удаление вопросов с мгновенным обновлением банка.
 
 Настройки защиты, ограничения API и порядок действий при атаке описаны в [SECURITY.md](./SECURITY.md).
 
@@ -39,6 +40,7 @@
 |---|---|
 | Алгоритмы и программирование | Алгоритмы, сортировки, сложность, C/C++/Python/JavaScript, ООП, SOLID |
 | Базы данных и SQL | SELECT, условия, агрегаты, JOIN, подзапросы, транзакции, DDL/DML/DQL/DCL/TCL |
+| Системный анализ | Системы, связи, декомпозиция, управление, модели «чёрного ящика» |
 | Компьютерные сети | OSI, TCP/IP, IPv4/IPv6, маски, CIDR, порты, IEEE 802 |
 | Моделирование систем | Виды моделей, устойчивость, сходимость, методы Ньютона и Эйлера, Лаплас |
 | Компьютерная графика | Растр и вектор, форматы, RGB/CMYK, Photoshop, CorelDRAW |
@@ -91,9 +93,10 @@ npm run preview
 Проект использует Supabase Auth и PostgreSQL для синхронизации между устройствами.
 
 1. Откройте **SQL Editor** в Supabase и выполните [`supabase/schema.sql`](./supabase/schema.sql).
-2. В **Authentication → URL Configuration** задайте Site URL приложения.
-3. Добавьте локальный и production-адреса в Redirect URLs, например `http://localhost:5173/**` и `https://learn-it-tests.vercel.app/**`.
-4. Оставьте **Confirm email** включенным — после регистрации пользователь подтверждает адрес по ссылке из письма.
+2. Выполните миграцию [`supabase/migrations/20260731000000_question_crud.sql`](./supabase/migrations/20260731000000_question_crud.sql), которая создаёт и заполняет управляемый банк вопросов.
+3. В **Authentication → URL Configuration** задайте Site URL приложения.
+4. Добавьте локальный и production-адреса в Redirect URLs, например `http://localhost:5173/**` и `https://learn-it-tests.vercel.app/**`.
+5. Оставьте **Confirm email** включенным — после регистрации пользователь подтверждает адрес по ссылке из письма.
 
 Шаблон письма находится в [`supabase/email-confirmation.html`](./supabase/email-confirmation.html). Вставьте его в **Authentication → Emails → Templates → Confirm signup**, а в поле Subject укажите `Подтвердите регистрацию в LearnIT Tests`. Ссылка подтверждения возвращается на домен приложения, чтобы пользователю не требовался прямой доступ к `supabase.co`.
 
@@ -114,10 +117,10 @@ src/
 │   ├── useAuth.js           # авторизация и загрузка рейтинга
 │   └── useExam.js           # логика тестов и синхронизация прогресса
 ├── lib/supabase.js          # клиент Supabase
+├── lib/questionRepository.js # загрузка и CRUD вопросов
 ├── App.vue                  # переключение экранов
-├── additionalQuestions.js  # дополнительные вопросы по пробелам программы
-├── consultationQuestions.js # прикладные вопросы по темам консультации
-├── questions.js             # основной банк вопросов
+├── generatedQuestions.js    # встроенный офлайн-банк из файлов консультации
+├── questions.js             # реактивное состояние и справочники банка
 └── style.css                # общие стили
 ```
 
@@ -133,7 +136,11 @@ src/
 
 ## Основа банка вопросов
 
-Темы, веса разделов и правила составления вопросов взяты из [чек-листа вступительного экзамена](./checklist_vstupitelny_ekzamen_it_ib.md). Вопросы имеют четыре варианта ответа, один лучший правильный вариант и краткое объяснение.
+Актуальный банк сформирован из двух файлов консультации в [`docs/question-sources`](./docs/question-sources). Точные дубли исключаются, каждый вопрос получает четыре уникальных варианта, один правильный ответ и объяснение. Для повторной генерации банка и SQL-миграции используется:
+
+```bash
+npm run questions:generate
+```
 
 ---
 
