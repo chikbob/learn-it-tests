@@ -17,7 +17,9 @@ function sanitizeProgress(value = {}) {
   sanitized.sessions = Number.isSafeInteger(sanitized.sessions) && sanitized.sessions >= 0 ? sanitized.sessions : 0
   sanitized.correct = Number.isSafeInteger(sanitized.correct) && sanitized.correct >= 0 ? sanitized.correct : 0
   sanitized.total = Number.isSafeInteger(sanitized.total) && sanitized.total >= sanitized.correct ? sanitized.total : sanitized.correct
-  sanitized.mistakes = !bankChanged && Array.isArray(sanitized.mistakes) ? sanitized.mistakes.filter(hasQuestion) : []
+  sanitized.mistakes = !bankChanged && Array.isArray(sanitized.mistakes)
+    ? [...new Set(sanitized.mistakes.filter(hasQuestion))]
+    : []
   sanitized.favorites = !bankChanged && Array.isArray(sanitized.favorites) ? sanitized.favorites.filter(hasQuestion) : []
   sanitized.mastery = !bankChanged && sanitized.mastery && typeof sanitized.mastery === 'object' && !Array.isArray(sanitized.mastery) ? sanitized.mastery : {}
   sanitized.history = Array.isArray(sanitized.history)
@@ -339,6 +341,8 @@ export function useExam(initialUserId = null) {
     )
     const sectionResults = Object.fromEntries(resultsBySection.value.map(row => [row.key, { correct: row.correct, total: row.total }]))
     progress.value = {
+      ...progress.value,
+      questionBankVersion,
       sessions: progress.value.sessions + 1,
       correct: progress.value.correct + sessionScore.value,
       total: progress.value.total + quiz.value.length,
