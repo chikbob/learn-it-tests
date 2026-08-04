@@ -27,27 +27,47 @@ function parseSource(sourcePath) {
   let section = ''
 
   for (let index = 0; index < lines.length; index++) {
-    const heading = lines[index].match(/^#\s+\d+\.\s*(.+)/)
-    if (heading) section = heading[1].trim()
+    const heading = lines[index].match(/^#\s+(?:\d+\.\s*)?(.+)/)
+    if (heading && sectionKeys[heading[1].trim()]) section = heading[1].trim()
 
     const question = lines[index].match(/^###\s+(\d+)\.\s+(.+)/)
     if (!question) continue
 
-    const block = lines.slice(index + 1, index + 15)
+    const nextQuestionOffset = lines.slice(index + 1).findIndex(line => /^###\s+\d+\./.test(line))
+    const blockEnd = nextQuestionOffset === -1 ? lines.length : index + 1 + nextQuestionOffset
+    const block = lines.slice(index + 1, blockEnd)
     const options = block
       .map(line => line.match(/^([A-D])\.\s+(.+)/))
       .filter(Boolean)
       .map(match => clean(match[2]))
     const answerMatch = block.map(line => line.match(/^\*\*Ответ:\s+([A-D])\.\s+(.+)\*\*$/)).find(Boolean)
+    const typeMatch = block.map(line => line.match(/^\*\*Тип:\*\*\s+(.+?)\s*$/)).find(Boolean)
+    const sourceMatch = block.map(line => line.match(/^\*\*Источник:\*\*\s+(.+?)\s*$/)).find(Boolean)
+    const explanationMatch = block.map(line => line.match(/^\*\*Объяснение:\*\*\s+(.+?)\s*$/)).find(Boolean)
     const sectionKey = sectionKeys[section]
 
-    if (Number(question[1]) !== parsed.length + 1 || options.length !== 4 || !answerMatch || !sectionKey) {
+    if (Number(question[1]) !== parsed.length + 1 || options.length !== 4 || !answerMatch || !typeMatch || !sourceMatch || !explanationMatch || !sectionKey) {
       throw new Error(`Не удалось разобрать вопрос в ${sourcePath}:${index + 1}`)
     }
 
     const correct = answerMatch[1].charCodeAt(0) - 65
     const answer = clean(answerMatch[2])
     if (options[correct] !== answer) throw new Error(`Ответ не совпадает с вариантом в вопросе ${question[1]}`)
+    if (new Set(options.map(option => option.toLocaleLowerCase('ru'))).size !== 4) {
+      throw new Error(`В вопросе ${question[1]} есть повторяющиеся варианты`)
+    }
+    if (/консультац|преподавател/i.test(question[2])) {
+      throw new Error(`Вопрос ${question[1]} ссылается на консультацию или преподавателя`)
+    }
+    if (!['термин', 'понимание', 'применение', 'расчёт'].includes(clean(typeMatch[1]))) {
+      throw new Error(`Неизвестный тип вопроса ${question[1]}`)
+    }
+    if (!['консультация', 'дополнительный'].includes(clean(sourceMatch[1]))) {
+      throw new Error(`Неизвестный источник вопроса ${question[1]}`)
+    }
+    if (options.some(option => /\s\/\s/.test(option))) {
+      throw new Error(`Вариант вопроса ${question[1]} объединяет ответы символом /`)
+    }
 
     parsed.push({
       section: sectionKey,
@@ -55,30 +75,49 @@ function parseSource(sourcePath) {
       options,
       correct,
       answer,
+      type: clean(typeMatch[1]),
+      source: clean(sourceMatch[1]),
+      explanation: clean(explanationMatch[1]),
     })
   }
 
   return parsed
 }
 
-function difficultyFor(text) {
-  const normalized = text.toLocaleLowerCase('ru').replaceAll('ё', 'е')
-  if (/сколько|чему рав|результат|что получ|запрос|маск|вычисл|определить/.test(normalized)) return 'application'
-  if (/не |ошибоч|неправиль|исключ|возможна ли|можно ли|является ли/.test(normalized)) return 'trick'
-  if (/что такое|как расшифров|что означает|как называется/.test(normalized)) return 'surface'
-  return 'understanding'
+function validateBank(questions) {
+  const answerCounts = [0, 1, 2, 3].map(index => questions.filter(question => question.correct === index).length)
+  if (Math.max(...answerCounts) - Math.min(...answerCounts) > 1) {
+    throw new Error(`Ответы распределены неравномерно: ${answerCounts.join(', ')}`)
+  }
+
+  const typeCounts = Object.fromEntries(['термин', 'понимание', 'применение', 'расчёт'].map(type => [type, 0]))
+  questions.forEach(question => { typeCounts[question.type] += 1 })
+  const practicalShare = (typeCounts['применение'] + typeCounts['расчёт']) / questions.length
+  if (practicalShare < 0.18 || practicalShare > 0.22) {
+    throw new Error(`Доля практических и расчётных вопросов вышла за диапазон 18–22%`)
+  }
 }
 
-const questions = parseSource(source).map((question, offset) => {
+const difficultyByType = {
+  'термин': 'surface',
+  'понимание': 'understanding',
+  'применение': 'application',
+  'расчёт': 'application',
+}
+
+const parsedQuestions = parseSource(source)
+validateBank(parsedQuestions)
+
+const questions = parsedQuestions.map((question, offset) => {
   const id = offset + 1
   return {
     id,
     section: question.section,
-    difficulty: difficultyFor(question.text),
+    difficulty: difficultyByType[question.type],
     text: question.text,
     options: question.options,
     correct: question.correct,
-    explanation: `Правильный ответ: ${question.answer}.`,
+    explanation: question.explanation,
     code: '',
     position: offset + 1,
   }
