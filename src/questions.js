@@ -2,14 +2,17 @@ import { reactive } from 'vue'
 import { builtInQuestions } from './generatedQuestions'
 
 export const sections = {
+  communications: { label: 'Деловые коммуникации', short: 'Коммуникации', color: '#a36245', category: 'humanities' },
+  history: { label: 'История России', short: 'История', color: '#8e574e', category: 'humanities' },
+  psychology: { label: 'Психология и самообразование', short: 'Психология', color: '#86628f', category: 'humanities' },
+  softskills: { label: 'Гибкие навыки в развитии карьеры', short: 'Гибкие навыки', color: '#a47a31', category: 'humanities' },
   algorithms: { label: 'Алгоритмизация и программирование', short: 'Алгоритмы', color: '#e46f50' },
-  graphics: { label: 'Графика и редакторы', short: 'Графика', color: '#a34f79' },
-  modeling: { label: 'Моделирование систем', short: 'Модели', color: '#95743d' },
+  graphics: { label: 'Компьютерная графика', short: 'Графика', color: '#a34f79' },
+  modeling: { label: 'Системный анализ и моделирование систем', short: 'Системы и модели', color: '#95743d' },
   databases: { label: 'Базы данных', short: 'БД', color: '#2d7f77' },
-  systems: { label: 'Системный анализ', short: 'Системы', color: '#8b633f' },
   networks: { label: 'Компьютерные сети', short: 'Сети', color: '#466fb3' },
-  security: { label: 'Информационная безопасность', short: 'ИБ', color: '#6657a0' },
-  information: { label: 'Электронная информация', short: 'Информация', color: '#65734a' },
+  security: { label: 'Основы информационной безопасности', short: 'ИБ', color: '#6657a0' },
+  information: { label: 'Организация и обработка электронной информации', short: 'Электронная информация', color: '#65734a' },
 }
 
 export const difficultyLabels = {

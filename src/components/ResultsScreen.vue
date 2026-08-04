@@ -18,7 +18,7 @@
         <History v-if="isHistoryReview" :size="24" /><Target v-else :size="24" />
         <h3>{{ isHistoryReview ? 'Архив попытки' : wrongQuestions.length ? 'Следующий шаг' : 'Без ошибок' }}</h3>
         <p v-if="isHistoryReview">Сохраненный результат можно просмотреть повторно в любое время.</p>
-        <p v-else>{{ wrongQuestions.length ? `${wrongQuestions.length} вопросов отправлено в персональное повторение.` : 'Все ответы верны. Можно переходить к новой симуляции.' }}</p>
+        <p v-else>{{ wrongQuestions.length ? `${wrongQuestions.length} вопросов отправлено в персональное повторение.` : 'Все ответы верны. Можно переходить к новому экзамену.' }}</p>
         <button v-if="wrongQuestions.length && !isHistoryReview" class="primary" @click="$emit('mistakes')"><RotateCcw :size="18" /> Разобрать ошибки</button>
         <button class="secondary" @click="$emit('home')">На главную</button>
       </aside>

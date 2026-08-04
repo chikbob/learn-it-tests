@@ -17,12 +17,12 @@
           <div><Users :size="19" /><span><b>{{ users.length }}</b><small>пользователей</small></span></div>
           <div><ClipboardCheck :size="19" /><span><b>{{ totalSessions }}</b><small>тестов завершено</small></span></div>
           <div><Target :size="19" /><span><b>{{ averageAccuracy }}%</b><small>средняя точность</small></span></div>
-          <div><Gauge :size="19" /><span><b>{{ simulations }}</b><small>симуляций</small></span></div>
+          <div><Gauge :size="19" /><span><b>{{ simulations }}</b><small>экзаменов</small></span></div>
         </section>
 
         <section class="admin-table-wrap">
           <div class="admin-table-heading"><div><h2>Пользователи</h2><p>Данные из Supabase.</p></div><button class="icon-button" @click="loadUsers" title="Обновить"><RefreshCw :size="17" /></button></div>
-          <div class="admin-columns"><span>Аккаунт</span><span>Роль</span><span>Тесты</span><span>Точность</span><span>Симуляции</span><span>Регистрация</span></div>
+          <div class="admin-columns"><span>Аккаунт</span><span>Роль</span><span>Тесты</span><span>Точность</span><span>Экзамены</span><span>Регистрация</span></div>
           <div v-for="item in users" :key="item.user_id" class="admin-row">
             <span class="admin-user"><i>{{ item.display_name.slice(0, 1).toUpperCase() }}</i><span><b>{{ item.display_name }}</b><small>{{ item.email }}</small></span></span>
             <span><em :class="item.role">{{ item.role === 'admin' ? 'Админ' : 'Ученик' }}</em></span>

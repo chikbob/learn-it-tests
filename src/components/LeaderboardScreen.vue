@@ -2,7 +2,7 @@
   <main class="leaderboard-page">
     <div class="leaderboard-header">
       <button class="icon-button" @click="$emit('home')" title="На главную"><ArrowLeft :size="21" /></button>
-      <div><p class="eyebrow"><Trophy :size="16" /> Рейтинг</p><h1>Таблица лидеров</h1><p>Рейтинг по среднему баллу всех завершенных симуляций.</p></div>
+      <div><p class="eyebrow"><Trophy :size="16" /> Рейтинг</p><h1>Таблица лидеров</h1><p>Рейтинг по среднему баллу всех завершённых экзаменов.</p></div>
     </div>
     <section class="leaderboard-table">
       <div class="leaderboard-columns"><span>Место и участник</span><span>Средний результат</span></div>

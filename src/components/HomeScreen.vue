@@ -26,7 +26,7 @@
         <div class="big-stat">{{ totalAccuracy }}<small>%</small></div>
         <p>Общая точность</p>
         <div class="meter"><span :style="{ width: totalAccuracy + '%' }"></span></div>
-        <div class="mini-stats"><span><b>{{ progress.correct }}</b> верных</span><span><b>{{ progress.mistakes.length }}</b> на повтор</span></div>
+        <div class="mini-stats"><span><b>{{ totalAccuracy }}%</b> общая точность</span><span><b>{{ examAccuracy }}%</b> средняя точность экзаменов</span></div>
       </div>
     </section>
 
@@ -37,7 +37,7 @@
         <button :class="{ active: track === 'security' }" @click="$emit('update:track', 'security')"><ShieldCheck :size="20" /> Информационная безопасность</button>
       </div>
 
-      <div class="section-heading"><div><p class="step">02</p><h2>Режим тренировки</h2></div><span>Ответы сохраняются на устройстве</span></div>
+      <div class="section-heading"><div><p class="step">02</p><h2>Режим тренировки</h2></div><span>Прогресс и избранное связаны с аккаунтом</span></div>
       <div class="mode-grid">
         <button v-for="item in modes" :key="item.id" class="mode-card" :class="{ active: mode === item.id }" :disabled="item.id === 'favorites' && !item.count" @click="$emit('update:mode', item.id)">
           <span class="mode-icon"><component :is="item.icon" :size="22" /></span>
@@ -69,36 +69,49 @@
             <option value="all">Все прохождения</option>
             <option value="diagnostic">Диагностика</option>
             <option value="thematic">По теме</option>
-            <option value="exam">Симуляция</option>
+            <option value="exam">Экзамен</option>
             <option value="mistakes">Работа над ошибками</option>
             <option value="favorites">Избранное</option>
+            <option value="technical">Технические вопросы</option>
+            <option value="humanities">Гуманитарные вопросы</option>
+            <option value="marathon">Марафон</option>
           </select>
         </label>
         <span>{{ filteredHistory.length }} {{ filteredHistory.length === 1 ? 'результат' : 'результатов' }}</span>
       </div>
       <div class="history-list">
-        <button v-for="session in filteredHistory.slice(0, 12)" :key="session.id" class="history-row" @click="$emit('review', session)">
+        <button v-for="session in pagedHistory" :key="session.id" class="history-row" @click="$emit('review', session)">
           <span>{{ formatDate(session.date) }}</span>
-          <strong>{{ modeLabel(session.mode) }}<small>{{ session.track === 'security' ? 'ИБ' : 'ИТ' }}<template v-if="session.topic"> · {{ sections[session.topic].short }}</template><em v-if="session.syncStatus === 'pending'"><CloudUpload :size="12" /> Загрузится при подключении к интернету</em></small></strong>
+          <strong>{{ modeLabel(session.mode) }}<small>{{ session.track === 'security' ? 'ИБ' : 'ИТ' }}<template v-if="session.topic && sections[session.topic]"> · {{ sections[session.topic].short }}</template><em v-if="session.syncStatus === 'pending'"><CloudUpload :size="12" /> Загрузится при подключении к интернету</em></small></strong>
           <b>{{ session.grade ? `${session.grade} б.` : `${session.score}/${session.total}` }}</b>
           <i>{{ Math.round(session.score / session.total * 100) }}% <ChevronRight :size="15" /></i>
         </button>
         <p v-if="!filteredHistory.length" class="empty-state">В этом режиме пока нет завершенных тестов.</p>
       </div>
+      <nav v-if="historyPages > 1" class="history-pagination" aria-label="Страницы истории">
+        <button :disabled="historyPage === 1" @click="historyPage--"><ChevronLeft :size="16" /> Назад</button>
+        <button v-for="page in historyPages" :key="page" :class="{ active: historyPage === page }" @click="historyPage = page">{{ page }}</button>
+        <button :disabled="historyPage === historyPages" @click="historyPage++">Вперёд <ChevronRight :size="16" /></button>
+      </nav>
     </section>
   </main>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { ArrowRight, BookOpen, ChevronRight, Clock3, CloudUpload, History, LibraryBig, LogOut, RotateCcw, Settings, ShieldCheck, Sparkles, Trash2, Trophy, UserRound, WifiOff } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
+import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, Clock3, CloudUpload, History, LibraryBig, LogOut, RotateCcw, Settings, ShieldCheck, Sparkles, Trash2, Trophy, UserRound, WifiOff } from 'lucide-vue-next'
 import { sections } from '../questions'
 
-const props = defineProps({ user: Object, progress: Object, totalAccuracy: Number, modes: Array, track: String, mode: String, selectedSection: String, availableSections: Array, modeLabel: Function, isOnline: Boolean, syncing: Boolean, pendingSyncCount: Number })
+const props = defineProps({ user: Object, progress: Object, totalAccuracy: Number, examAccuracy: Number, modes: Array, track: String, mode: String, selectedSection: String, availableSections: Array, modeLabel: Function, isOnline: Boolean, syncing: Boolean, pendingSyncCount: Number })
 defineEmits(['update:track', 'update:mode', 'update:selectedSection', 'start', 'resume', 'mistakes', 'catalog', 'clear', 'review', 'leaderboard', 'profile', 'admin', 'logout'])
 
 const historyMode = ref('all')
+const historyPage = ref(1)
+const historyPageSize = 10
 const filteredHistory = computed(() => props.progress.history.filter(session => historyMode.value === 'all' || session.mode === historyMode.value))
+const historyPages = computed(() => Math.max(1, Math.ceil(filteredHistory.value.length / historyPageSize)))
+const pagedHistory = computed(() => filteredHistory.value.slice((historyPage.value - 1) * historyPageSize, historyPage.value * historyPageSize))
+watch(historyMode, () => { historyPage.value = 1 })
 
 function formatDate(value) {
   return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
@@ -109,6 +122,7 @@ function formatDate(value) {
 .user-actions { display: flex; align-items: center; gap: 7px; }
 .offline-notice { margin: -22px 0 32px; padding: 12px 14px; border-left: 3px solid #d0a944; background: #fff9e9; color: #5d4b20; display: flex; align-items: center; gap: 10px; }.offline-notice span { display: grid; gap: 2px; font-size: 11px; }.offline-notice b { font-size: 12px; }.history-row small em { margin-left: 10px; color: #9b6f13; display: inline-flex; align-items: center; gap: 4px; font-style: normal; font-weight: 700; }
 .top-action { min-height: 42px; padding: 0 13px; border: 1px solid #bbc7c2; border-radius: 5px; background: transparent; color: #173f3a; display: inline-flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; font-size: 12px; font-weight: 800; }.top-action:hover { background: #edf3f1; }.top-action.admin { color: #80610f; border-color: #d9c47f; }.top-action.logout { width: 42px; padding: 0; color: #8d413b; border-color: #d8c7c3; }
+.history-pagination { margin-top: 16px; display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }.history-pagination button { min-height: 36px; padding: 0 11px; border: 1px solid #d5dcd7; border-radius: 4px; background: #fff; color: #46534e; display: inline-flex; align-items: center; gap: 4px; justify-content: center; font-size: 11px; font-weight: 800; cursor: pointer; }.history-pagination button.active { background: #173f3a; border-color: #173f3a; color: #fff; }.history-pagination button:disabled { opacity: .45; cursor: default; }
 @media (max-width: 760px) {
   .user-bar { display: grid; grid-template-columns: 44px minmax(60px,1fr) auto; gap: 10px; }
   .user-actions { gap: 4px; padding: 3px; border: 1px solid #d5ddd8; border-radius: 6px; background: #fff; }

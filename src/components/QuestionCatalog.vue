@@ -58,7 +58,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ArrowLeft, ArrowUp, ChevronRight, LibraryBig, Search, Star } from 'lucide-vue-next'
 import { difficultyLabels, questions, sections } from '../questions'
 
-const props = defineProps({ favorites: { type: Array, default: () => [] } })
+const props = defineProps({ favorites: { type: Array, default: () => [] }, track: { type: String, default: 'it' } })
 defineEmits(['home', 'toggle-favorite'])
 
 const search = ref('')
@@ -88,9 +88,10 @@ onBeforeUnmount(() => {
 const filteredQuestions = computed(() => {
   const needle = search.value.trim().toLocaleLowerCase('ru')
   return questions.filter(question => {
+    const matchesTrack = question.audience === 'common' || question.audience === props.track
     const matchesSearch = !needle || [question.text, question.explanation, ...question.options].join(' ').toLocaleLowerCase('ru').includes(needle)
     const matchesFavorite = !favoritesOnly.value || props.favorites.includes(question.id)
-    return matchesSearch && matchesFavorite && (sectionFilter.value === 'all' || question.section === sectionFilter.value) && (difficultyFilter.value === 'all' || question.difficulty === difficultyFilter.value)
+    return matchesTrack && matchesSearch && matchesFavorite && (sectionFilter.value === 'all' || question.section === sectionFilter.value) && (difficultyFilter.value === 'all' || question.difficulty === difficultyFilter.value)
   })
 })
 </script>

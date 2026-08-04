@@ -17,7 +17,7 @@
     <section class="profile-stats" aria-label="Статистика подготовки">
       <div><span><Layers3 :size="18" /></span><b>{{ progress.sessions }}</b><small>тестов завершено</small></div>
       <div><span><Target :size="18" /></span><b>{{ totalAccuracy }}%</b><small>общая точность</small></div>
-      <div><span><CheckCircle2 :size="18" /></span><b>{{ progress.correct }}</b><small>верных ответов</small></div>
+      <div><span><CheckCircle2 :size="18" /></span><b>{{ examAccuracy }}%</b><small>средняя точность экзаменов</small></div>
       <div><span><Star :size="18" /></span><b>{{ progress.favorites.length }}</b><small>в избранном</small></div>
     </section>
 
@@ -56,7 +56,7 @@
 import { ref } from 'vue'
 import { ArrowLeft, BadgeCheck, CheckCircle2, CircleAlert, CircleCheck, Cloud, KeyRound, Layers3, Mail, Save, ShieldCheck, Star, Target, UserRound } from 'lucide-vue-next'
 
-const props = defineProps({ user: Object, progress: Object, totalAccuracy: Number, passwordRecovery: Boolean, requestPasswordReset: Function, updatePassword: Function, updateDisplayName: Function })
+const props = defineProps({ user: Object, progress: Object, totalAccuracy: Number, examAccuracy: Number, passwordRecovery: Boolean, requestPasswordReset: Function, updatePassword: Function, updateDisplayName: Function })
 defineEmits(['home'])
 const password = ref('')
 const confirmation = ref('')

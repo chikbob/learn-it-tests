@@ -8,6 +8,7 @@
       :user="currentUser"
       :progress="progress"
       :total-accuracy="totalAccuracy"
+      :exam-accuracy="examAccuracy"
       :modes="modes"
       :track="track"
       :mode="mode"
@@ -32,26 +33,31 @@
       @logout="handleLogout"
     />
     <LeaderboardScreen v-else-if="screen === 'leaderboard'" :players="leaderboard" :current-user="currentUser" @home="goHome" />
-    <ProfileScreen v-else-if="screen === 'profile'" :user="currentUser" :progress="progress" :total-accuracy="totalAccuracy" :password-recovery="passwordRecovery" :request-password-reset="requestPasswordReset" :update-password="updatePassword" :update-display-name="updateDisplayName" @home="goHome" />
+    <ProfileScreen v-else-if="screen === 'profile'" :user="currentUser" :progress="progress" :total-accuracy="totalAccuracy" :exam-accuracy="examAccuracy" :password-recovery="passwordRecovery" :request-password-reset="requestPasswordReset" :update-password="updatePassword" :update-display-name="updateDisplayName" @home="goHome" />
     <QuizScreen
       v-else-if="screen === 'quiz' && current"
       :current="current"
       :index="index"
       :quiz-length="quiz.length"
+      :quiz="quiz"
+      :answers="answers"
       :mode="mode"
       :selected="selected"
       :answered="answered"
       :is-correct="isCorrect"
       :is-exam="isExam"
+      :immediate-feedback="immediateFeedback"
+      :formatted-exam-time="formattedExamTime"
       :is-favorite="progress.favorites.includes(current.id)"
       :mode-label="modeLabel"
       @home="goHome"
       @choose="choose"
       @confirm="confirm"
       @next="next"
+      @go-to="goToQuestion"
       @toggle-favorite="toggleFavorite"
     />
-    <QuestionCatalog v-else-if="screen === 'catalog'" :favorites="progress.favorites" @toggle-favorite="toggleFavorite" @home="goHome" />
+    <QuestionCatalog v-else-if="screen === 'catalog'" :favorites="progress.favorites" :track="track" @toggle-favorite="toggleFavorite" @home="goHome" />
     <ResultsScreen
       v-else
       :session-score="sessionScore"
@@ -87,7 +93,7 @@ import { useAuth } from './composables/useAuth'
 import { loadQuestions } from './lib/questionRepository'
 
 const { currentUser, leaderboard, loading: authLoading, passwordRecovery, initialize, register, login, logout, refreshLeaderboard, loadAdminUsers, requestPasswordReset, updatePassword, updateDisplayName } = useAuth()
-const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, isOnline, syncing, pendingSyncCount, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel } = useExam(currentUser.value?.id)
+const { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, immediateFeedback, answered, isCorrect, totalAccuracy, examAccuracy, formattedExamTime, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, isOnline, syncing, pendingSyncCount, startQuiz, resumeQuiz, choose, confirm, next, goToQuestion, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel } = useExam(currentUser.value?.id)
 
 watch(() => currentUser.value?.id || null, async userId => {
   if (userId) await loadQuestions()

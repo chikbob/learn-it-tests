@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import { questions, removeQuestion, replaceQuestions, upsertQuestion } from '../questions'
 
-const columns = 'id, section, difficulty, text, options, correct, explanation, code, position'
+const columns = 'id, section, category, audience, difficulty, text, options, correct, explanation, source, code, position'
 
 function normalizeQuestion(row) {
   return {
@@ -15,13 +15,17 @@ function normalizeQuestion(row) {
 }
 
 function payloadFrom(question) {
+  const humanities = ['communications', 'history', 'psychology', 'softskills']
   return {
     section: question.section,
+    category: question.category || (humanities.includes(question.section) ? 'humanities' : 'technical'),
+    audience: question.audience || (question.section === 'databases' ? 'it' : question.section === 'security' ? 'security' : 'common'),
     difficulty: question.difficulty,
     text: question.text.trim(),
     options: question.options.map(option => option.trim()),
     correct: Number(question.correct),
     explanation: question.explanation.trim(),
+    source: question.source?.trim() || 'Ручное добавление',
     code: question.code?.trim() || '',
     position: Number(question.position),
     updated_at: new Date().toISOString(),

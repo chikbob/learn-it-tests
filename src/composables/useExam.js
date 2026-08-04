@@ -1,12 +1,13 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { BookOpen, Clock3, Star, Target } from 'lucide-vue-next'
+import { BookOpen, BrainCircuit, Clock3, Cpu, Infinity as InfinityIcon, Star, Target } from 'lucide-vue-next'
 import { questions, sections } from '../questions'
 import { supabase } from '../lib/supabase'
 import { readJson, writeJson } from '../lib/storage'
 import { updateMistakeProgress } from '../lib/mistakeProgress'
 
-const questionBankVersion = 2
-const emptyProgress = () => ({ questionBankVersion, sessions: 0, correct: 0, total: 0, mistakes: [], favorites: [], mastery: {}, history: [], activeQuiz: null, pendingSimulations: [] })
+const questionBankVersion = 3
+const examDurationSeconds = 120 * 60
+const emptyProgress = () => ({ questionBankVersion, sessions: 0, correct: 0, total: 0, mistakes: [], favorites: [], favoriteChanges: {}, mastery: {}, history: [], activeQuiz: null, pendingSimulations: [] })
 const hasQuestion = questionId => questions.some(question => question.id === questionId)
 
 function sanitizeProgress(value = {}) {
@@ -21,9 +22,16 @@ function sanitizeProgress(value = {}) {
     ? [...new Set(sanitized.mistakes.filter(hasQuestion))]
     : []
   sanitized.favorites = !bankChanged && Array.isArray(sanitized.favorites) ? sanitized.favorites.filter(hasQuestion) : []
+  sanitized.favoriteChanges = !bankChanged && sanitized.favoriteChanges && typeof sanitized.favoriteChanges === 'object' && !Array.isArray(sanitized.favoriteChanges) ? sanitized.favoriteChanges : {}
   sanitized.mastery = !bankChanged && sanitized.mastery && typeof sanitized.mastery === 'object' && !Array.isArray(sanitized.mastery) ? sanitized.mastery : {}
   sanitized.history = Array.isArray(sanitized.history)
-    ? sanitized.history.map(session => bankChanged ? { ...session, questionIds: [], answers: [] } : session)
+    ? sanitized.history.map(session => bankChanged ? {
+      ...session,
+      topic: sections[session.topic] ? session.topic : null,
+      sections: Object.fromEntries(Object.entries(session.sections || {}).filter(([key]) => sections[key])),
+      questionIds: [],
+      answers: [],
+    } : session)
     : []
   sanitized.pendingSimulations = Array.isArray(sanitized.pendingSimulations) ? sanitized.pendingSimulations : []
   if (bankChanged || sanitized.activeQuiz?.ids.some(id => !hasQuestion(id))) sanitized.activeQuiz = null
@@ -50,11 +58,12 @@ export function useExam(initialUserId = null) {
   const progressReady = ref(false)
   const isOnline = ref(navigator.onLine)
   const syncing = ref(false)
+  const examRemaining = ref(examDurationSeconds)
   const progressKey = () => userId ? `learnit-progress:${userId}` : 'learnit-progress'
   const stored = readJson(progressKey())
   const progress = ref(sanitizeProgress(stored || {}))
   const pendingSyncCount = computed(() => progress.value.history.filter(session => session.syncStatus === 'pending').length)
-  if (progress.value.activeQuiz?.mode === 'exam' && progress.value.activeQuiz.ids.length !== 30) {
+  if (progress.value.activeQuiz?.mode === 'exam' && progress.value.activeQuiz.ids.length !== 50) {
     progress.value.activeQuiz = null
     writeJson(progressKey(), progress.value)
   }
@@ -62,16 +71,29 @@ export function useExam(initialUserId = null) {
   const modes = computed(() => [
     { id: 'diagnostic', icon: Target, title: 'Диагностика', note: 'Все разделы, разбор после ответа', count: 30 },
     { id: 'thematic', icon: BookOpen, title: 'По теме', note: '15 вопросов только выбранной темы', count: 15 },
-    { id: 'exam', icon: Clock3, title: 'Симуляция', note: '30 вопросов, результат по шкале 1–100', count: 30 },
+    { id: 'exam', icon: Clock3, title: 'Экзамен', note: '50 вопросов · 120 минут · без подсказок', count: 50 },
     { id: 'favorites', icon: Star, title: 'Избранное', note: 'Тест по вопросам, отмеченным звездочкой', count: progress.value.favorites.length },
+    { id: 'technical', icon: Cpu, title: 'Технические вопросы', note: '30 технических вопросов с мгновенной проверкой', count: 30 },
+    { id: 'humanities', icon: BrainCircuit, title: 'Гуманитарные вопросы', note: '30 гуманитарных вопросов с мгновенной проверкой', count: 30 },
+    { id: 'marathon', icon: InfinityIcon, title: 'Марафон', note: 'Все доступные вопросы в случайном порядке', count: questions.filter(question => question.audience === 'common' || question.audience === track.value).length },
   ])
 
-  const availableSections = computed(() => Object.entries(sections).filter(([key]) => track.value === 'security' || key !== 'security'))
+  const availableSections = computed(() => Object.entries(sections).filter(([key]) => questions.some(question => question.section === key && (question.audience === 'common' || question.audience === track.value))))
   const current = computed(() => quiz.value[index.value])
   const isExam = computed(() => mode.value === 'exam')
+  const immediateFeedback = computed(() => ['diagnostic', 'thematic', 'favorites', 'mistakes', 'technical', 'humanities', 'marathon'].includes(mode.value))
   const answered = computed(() => answers.value[index.value] !== undefined)
   const isCorrect = computed(() => answered.value && answers.value[index.value] === current.value?.correct)
   const totalAccuracy = computed(() => progress.value.total ? Math.round(progress.value.correct / progress.value.total * 100) : 0)
+  const examAccuracy = computed(() => {
+    const exams = progress.value.history.filter(session => session.mode === 'exam')
+    return exams.length ? Math.round(exams.reduce((sum, session) => sum + (session.grade || Math.round(session.score / session.total * 100)), 0) / exams.length) : 0
+  })
+  const formattedExamTime = computed(() => {
+    const minutes = Math.floor(examRemaining.value / 60)
+    const seconds = examRemaining.value % 60
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  })
   const sessionScore = computed(() => reviewSession.value?.score ?? answers.value.filter((answer, i) => answer === quiz.value[i]?.correct).length)
   const resultTotal = computed(() => reviewSession.value?.total ?? quiz.value.length)
   const examGrade = computed(() => reviewSession.value?.grade ?? (resultTotal.value ? Math.max(1, Math.round(sessionScore.value / resultTotal.value * 100)) : 1))
@@ -164,12 +186,32 @@ export function useExam(initialUserId = null) {
     return shuffle([...picked, ...balancedPick(pool.filter(question => !picked.includes(question)), count - picked.length)]).slice(0, count)
   }
 
+  const officialSections = () => ['communications', 'history', 'psychology', 'softskills', 'algorithms', 'graphics', 'modeling', track.value === 'security' ? 'security' : 'databases', 'information', 'networks']
+  const availablePool = () => questions.filter(question => question.audience === 'common' || question.audience === track.value)
+
+  async function syncFavoriteChanges() {
+    if (!userId || !navigator.onLine) return
+    const changes = Object.entries(progress.value.favoriteChanges || {})
+    for (const [questionId, enabled] of changes) {
+      const numericId = Number(questionId)
+      const request = enabled
+        ? supabase.from('question_favorites').upsert({ user_id: userId, question_id: numericId }, { ignoreDuplicates: true })
+        : supabase.from('question_favorites').delete().eq('user_id', userId).eq('question_id', numericId)
+      const { error } = await request
+      if (error) throw error
+      delete progress.value.favoriteChanges[questionId]
+    }
+    const { data, error } = await supabase.from('question_favorites').select('question_id').eq('user_id', userId)
+    if (error) throw error
+    progress.value.favorites = (data || []).map(row => Number(row.question_id)).filter(hasQuestion)
+  }
+
   function saveLocal() {
     writeJson(progressKey(), progress.value)
   }
 
   function hasPendingChanges() {
-    return progress.value.pendingSimulations.length > 0 || progress.value.history.some(session => session.syncStatus === 'pending')
+    return progress.value.pendingSimulations.length > 0 || progress.value.history.some(session => session.syncStatus === 'pending') || Object.keys(progress.value.favoriteChanges || {}).length > 0
   }
 
   function recordSyncSuccess() {
@@ -197,6 +239,7 @@ export function useExam(initialUserId = null) {
           if (error) throw error
           completedAttempts.add(attempt.id)
         }
+        await syncFavoriteChanges()
         const snapshot = JSON.parse(JSON.stringify(progress.value))
         snapshot.pendingSimulations = snapshot.pendingSimulations.filter(attempt => !completedAttempts.has(attempt.id))
         snapshot.history = snapshot.history.map(session => ({ ...session, syncStatus: 'synced' }))
@@ -228,13 +271,17 @@ export function useExam(initialUserId = null) {
       if (error) throw error
       if (!data?.data || ownerId !== userId || hasPendingChanges()) return
       const remote = sanitizeProgress(data.data)
+      const { data: favoriteRows, error: favoriteError } = await supabase.from('question_favorites').select('question_id').eq('user_id', ownerId)
+      if (favoriteError) throw favoriteError
+      remote.favorites = (favoriteRows || []).map(row => Number(row.question_id)).filter(hasQuestion)
+      progress.value.favorites = [...remote.favorites]
       const localHistoryIds = new Set(progress.value.history.map(session => session.id))
       const hasNewRemoteSession = remote.history.some(session => !localHistoryIds.has(session.id))
       if (remote.sessions > progress.value.sessions || (remote.sessions === progress.value.sessions && hasNewRemoteSession)) {
         const activeQuiz = progress.value.activeQuiz || remote.activeQuiz
         progress.value = { ...remote, activeQuiz }
-        saveLocal()
       }
+      saveLocal()
       recordSyncSuccess()
     })().catch(error => {
       recordSyncFailure()
@@ -261,7 +308,7 @@ export function useExam(initialUserId = null) {
   function startQuiz(kind = mode.value) {
     reviewSession.value = null
     mode.value = kind
-    let pool = questions.filter(question => track.value === 'security' || question.section !== 'security')
+    let pool = availablePool()
     let count = modes.value.find(item => item.id === kind)?.count || 12
     if (kind === 'thematic') pool = pool.filter(question => question.section === selectedSection.value)
     if (kind === 'mistakes') {
@@ -269,26 +316,31 @@ export function useExam(initialUserId = null) {
       count = pool.length
     }
     if (kind === 'favorites') {
-      pool = questions.filter(question => progress.value.favorites.includes(question.id))
+      pool = availablePool().filter(question => progress.value.favorites.includes(question.id))
       count = pool.length
     }
+    if (kind === 'technical') pool = pool.filter(question => question.category === 'technical')
+    if (kind === 'humanities') pool = pool.filter(question => question.category === 'humanities')
+    if (kind === 'marathon') count = pool.length
     if (kind === 'exam') {
       const recentIds = new Set(progress.value.history.filter(session => session.mode === 'exam').slice(0, 3).flatMap(session => session.questionIds || []))
       const freshPool = pool.filter(question => !recentIds.has(question.id))
       if (freshPool.length >= count * 2) pool = freshPool
     }
-    if (kind === 'exam' || kind === 'diagnostic') {
-      const weights = track.value === 'security'
-        ? { security: .22, algorithms: .18, databases: .16, systems: .12, networks: .12, modeling: .08, information: .07, graphics: .05 }
-        : { algorithms: .22, databases: .18, systems: .16, networks: .16, modeling: .12, graphics: .08, information: .08 }
+    if (kind === 'exam') {
+      quiz.value = shuffle(officialSections().flatMap(section => sectionPick(pool.filter(question => question.section === section), 5, section)))
+    } else if (kind === 'diagnostic') {
+      const weights = Object.fromEntries(officialSections().map(section => [section, .1]))
       quiz.value = weightedPool(pool, weights, count)
     } else if (kind === 'thematic') quiz.value = sectionPick(pool, count, selectedSection.value)
+    else if (kind === 'marathon') quiz.value = shuffle(pool)
     else quiz.value = balancedPick(pool, count)
     index.value = 0
     answers.value = []
     selected.value = null
     screen.value = 'quiz'
-    progress.value.activeQuiz = { ids: quiz.value.map(question => question.id), mode: kind, track: track.value, selectedSection: selectedSection.value, index: 0, answers: [] }
+    examRemaining.value = kind === 'exam' ? examDurationSeconds : 0
+    progress.value.activeQuiz = { ids: quiz.value.map(question => question.id), mode: kind, track: track.value, selectedSection: selectedSection.value, index: 0, answers: [], remainingSeconds: kind === 'exam' ? examDurationSeconds : null }
     persist()
   }
 
@@ -302,6 +354,7 @@ export function useExam(initialUserId = null) {
     selectedSection.value = active.selectedSection
     index.value = active.index
     answers.value = active.answers
+    examRemaining.value = active.mode === 'exam' ? Math.max(0, Number(active.remainingSeconds) || examDurationSeconds) : 0
     selected.value = answers.value[index.value] ?? null
     screen.value = 'quiz'
   }
@@ -327,6 +380,14 @@ export function useExam(initialUserId = null) {
       progress.value.activeQuiz = { ...progress.value.activeQuiz, index: index.value }
       persist()
     } else finish()
+  }
+
+  function goToQuestion(questionIndex) {
+    if (!Number.isInteger(questionIndex) || questionIndex < 0 || questionIndex >= quiz.value.length) return
+    index.value = questionIndex
+    selected.value = answers.value[index.value] ?? null
+    progress.value.activeQuiz = { ...progress.value.activeQuiz, index: index.value }
+    persist()
   }
 
   function finish() {
@@ -375,14 +436,17 @@ export function useExam(initialUserId = null) {
 
   function setTrack(value) {
     track.value = value
-    if (value === 'it' && selectedSection.value === 'security') selectedSection.value = 'networks'
+    if (value === 'it' && selectedSection.value === 'security') selectedSection.value = 'databases'
+    if (value === 'security' && selectedSection.value === 'databases') selectedSection.value = 'security'
   }
 
   function toggleFavorite(questionId) {
     const favorites = new Set(progress.value.favorites)
-    if (favorites.has(questionId)) favorites.delete(questionId)
-    else favorites.add(questionId)
+    const enabled = !favorites.has(questionId)
+    if (enabled) favorites.add(questionId)
+    else favorites.delete(questionId)
     progress.value.favorites = [...favorites]
+    progress.value.favoriteChanges = { ...progress.value.favoriteChanges, [questionId]: enabled }
     persist()
   }
 
@@ -403,19 +467,28 @@ export function useExam(initialUserId = null) {
     progress.value = sanitizeProgress(saved ? readJson(userKey, {}) : {})
     try {
       if (nextUserId && navigator.onLine) {
-        const progressRequest = supabase.from('progress').select('data').eq('user_id', nextUserId).maybeSingle()
-        const { data, error } = await Promise.race([
+        const progressRequest = Promise.all([
+          supabase.from('progress').select('data').eq('user_id', nextUserId).maybeSingle(),
+          supabase.from('question_favorites').select('question_id').eq('user_id', nextUserId),
+        ])
+        const [progressResult, favoritesResult] = await Promise.race([
           progressRequest,
           new Promise((_, reject) => setTimeout(() => reject(new Error('Progress sync timeout')), 10000)),
         ])
-        if (error) throw error
-        if (data?.data) {
-          const remote = sanitizeProgress(data.data)
+        if (progressResult.error) throw progressResult.error
+        if (favoritesResult.error) throw favoritesResult.error
+        if (progressResult.data?.data) {
+          const remote = sanitizeProgress(progressResult.data.data)
+          remote.favorites = (favoritesResult.data || []).map(row => Number(row.question_id)).filter(hasQuestion)
           const hasLocalQueue = hasPendingChanges()
           if (!hasLocalQueue && (remote.sessions || 0) >= progress.value.sessions) {
-            progress.value = remote
+            const localActiveQuiz = progress.value.activeQuiz
+            progress.value = { ...remote, activeQuiz: localActiveQuiz || remote.activeQuiz }
             writeJson(userKey, progress.value)
           } else persist()
+        } else {
+          progress.value.favorites = (favoritesResult.data || []).map(row => Number(row.question_id)).filter(hasQuestion)
+          persist()
         }
       }
     } catch (error) {
@@ -431,8 +504,9 @@ export function useExam(initialUserId = null) {
   function clearProgress() {
     if (!window.confirm('Удалить историю, результаты и журнал ошибок?')) return
     const favorites = [...progress.value.favorites]
+    const favoriteChanges = { ...progress.value.favoriteChanges }
     const pendingSimulations = [...progress.value.pendingSimulations]
-    progress.value = { ...emptyProgress(), favorites, pendingSimulations }
+    progress.value = { ...emptyProgress(), favorites, favoriteChanges, pendingSimulations }
     localStorage.removeItem(progressKey())
     persist()
     screen.value = 'home'
@@ -459,6 +533,15 @@ export function useExam(initialUserId = null) {
   const syncTimer = window.setInterval(() => {
     if (document.visibilityState === 'visible') void synchronizeNow()
   }, 10000)
+  let timerTicks = 0
+  const examTimer = window.setInterval(() => {
+    if (screen.value !== 'quiz' || mode.value !== 'exam' || !progress.value.activeQuiz) return
+    examRemaining.value = Math.max(0, examRemaining.value - 1)
+    progress.value.activeQuiz = { ...progress.value.activeQuiz, remainingSeconds: examRemaining.value }
+    saveLocal()
+    if (++timerTicks % 15 === 0 && userId && navigator.onLine) void runSync()
+    if (examRemaining.value === 0) finish()
+  }, 1000)
 
   window.addEventListener('online', handleOnline)
   window.addEventListener('offline', handleOffline)
@@ -466,11 +549,12 @@ export function useExam(initialUserId = null) {
   document.addEventListener('visibilitychange', handleVisibility)
   onBeforeUnmount(() => {
     window.clearInterval(syncTimer)
+    window.clearInterval(examTimer)
     window.removeEventListener('online', handleOnline)
     window.removeEventListener('offline', handleOffline)
     window.removeEventListener('focus', synchronizeNow)
     document.removeEventListener('visibilitychange', handleVisibility)
   })
 
-  return { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, answered, isCorrect, totalAccuracy, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, isOnline, syncing, pendingSyncCount, startQuiz, resumeQuiz, choose, confirm, next, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel }
+  return { screen, track, selectedSection, mode, quiz, index, selected, answers, progress, progressReady, reviewSession, modes, availableSections, current, isExam, immediateFeedback, answered, isCorrect, totalAccuracy, examAccuracy, examRemaining, formattedExamTime, sessionScore, resultTotal, examGrade, wrongQuestions, resultsBySection, isOnline, syncing, pendingSyncCount, startQuiz, resumeQuiz, choose, confirm, next, goToQuestion, goHome, openHistory, setTrack, setUser, clearProgress, toggleFavorite, modeLabel }
 }
