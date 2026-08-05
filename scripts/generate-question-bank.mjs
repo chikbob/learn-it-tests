@@ -7,6 +7,7 @@ const source = process.argv[2] || path.join(root, 'polnyy_bank_voprosov_magistra
 const canonicalPath = path.join(root, 'docs/question-sources/bank_magistratura_2026.md')
 const migrationPath = path.join(root, 'supabase/migrations/20260804200000_exam_2026_and_favorites.sql')
 const refinementMigrationPath = path.join(root, 'supabase/migrations/20260805120000_refine_question_wording.sql')
+const balancedWordingMigrationPath = path.join(root, 'supabase/migrations/20260805150000_balance_question_wording.sql')
 
 const sectionMap = {
   '1': { key: 'communications', name: 'Деловые коммуникации', category: 'humanities', audience: 'common' },
@@ -76,11 +77,17 @@ function explanationFor(question) {
   return `${question.answer} — наиболее точный ответ среди предложенных вариантов.`
 }
 
-function naturalizeQuestion(text) {
+function naturalizeQuestion(text, offset) {
   const termMatch = text.match(/^Какой термин соответствует определению:\s*«(.+)»\?$/)
   if (termMatch) {
     const definition = termMatch[1].replace(/[.]$/, '')
-    return `${definition.charAt(0).toLocaleUpperCase('ru')}${definition.slice(1)} — это:`
+    const directDefinition = `${definition.charAt(0).toLocaleUpperCase('ru')}${definition.slice(1)}`
+    return [
+      `${directDefinition} — это:`,
+      `Какое понятие обозначает: «${definition}»?`,
+      `О каком понятии идёт речь: «${definition}»?`,
+      `Выберите название для описания: «${definition}».`,
+    ][offset % 4]
   }
   const definitionMatch = text.match(/^Какое определение (?:точнее всего раскрывает|раскрывает) (?:понятие )?«?(.+?)»?\?$/)
   if (definitionMatch) return `${definitionMatch[1]} — это:`
@@ -169,7 +176,7 @@ const questions = parsed.map((question, offset) => {
     category: question.category,
     audience: question.audience,
     difficulty: question.difficulty,
-    text: wordingOverrides[id] || naturalizeQuestion(question.text),
+    text: wordingOverrides[id] || naturalizeQuestion(question.text, offset),
     options: rotatedOptions,
     correct: targetCorrect,
     explanation: explanationFor(question),
@@ -274,4 +281,18 @@ where question.id = seed.id;
 commit;
 `
 fs.writeFileSync(refinementMigrationPath, refinementSql)
+const balancedWordingJson = JSON.stringify(questions.map(question => ({ id: question.id, text: question.text })))
+const balancedWordingSql = `begin;
+
+update public.questions as question
+set text = seed.text,
+    updated_at = now()
+from jsonb_to_recordset($balanced_wording$${balancedWordingJson}$balanced_wording$::jsonb) as seed (
+  id bigint, text text
+)
+where question.id = seed.id;
+
+commit;
+`
+fs.writeFileSync(balancedWordingMigrationPath, balancedWordingSql)
 console.log(`Сгенерировано ${questions.length} вопросов; удалено ${986 - questions.length} смысловых дублей`)
