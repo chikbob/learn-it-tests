@@ -32,7 +32,7 @@
         </summary>
         <div class="catalog-answer">
           <pre v-if="question.code"><code>{{ question.code }}</code></pre>
-          <ol type="A"><li v-for="(option, optionIndex) in question.options" :key="option" :class="{ correct: optionIndex === question.correct }">{{ option }}</li></ol>
+          <ol type="A"><li v-for="(option, optionIndex) in question.options" :key="option" :class="{ correct: optionIndex === question.correct }">{{ formatQuestionOption(option) }}</li></ol>
           <p><b>Объяснение:</b> {{ question.explanation }}</p>
         </div>
       </details>
@@ -57,6 +57,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ArrowLeft, ArrowUp, ChevronRight, LibraryBig, Search, Star } from 'lucide-vue-next'
 import { difficultyLabels, questions, sections } from '../questions'
+import { formatQuestionOption } from '../lib/questionFormatting'
 
 const props = defineProps({ favorites: { type: Array, default: () => [] }, track: { type: String, default: 'it' } })
 defineEmits(['home', 'toggle-favorite'])

@@ -39,7 +39,7 @@
             <pre v-if="question.code"><code>{{ question.code }}</code></pre>
             <div class="review-options">
               <div v-for="(option, optionIndex) in question.options" :key="option" :class="{ chosen: answers[questionIndex] === optionIndex, correct: question.correct === optionIndex, incorrect: answers[questionIndex] === optionIndex && question.correct !== optionIndex }">
-                <span>{{ ['А','Б','В','Г'][optionIndex] }}</span><b>{{ option }}</b>
+                <span>{{ ['А','Б','В','Г'][optionIndex] }}</span><b>{{ formatQuestionOption(option) }}</b>
                 <em v-if="question.correct === optionIndex"><Check :size="15" /> Правильный ответ</em>
                 <em v-else-if="answers[questionIndex] === optionIndex"><MousePointer2 :size="15" /> Ваш ответ</em>
               </div>
@@ -57,6 +57,7 @@
 import { computed } from 'vue'
 import { Check, ChevronRight, History, MousePointer2, RotateCcw, Star, Target, Trophy, X } from 'lucide-vue-next'
 import { sections } from '../questions'
+import { formatQuestionOption } from '../lib/questionFormatting'
 
 const props = defineProps({ sessionScore: Number, resultTotal: Number, quiz: Array, answers: Array, examGrade: Number, isExam: Boolean, isHistoryReview: Boolean, mode: String, resultsBySection: Array, wrongQuestions: Array, favorites: { type: Array, default: () => [] } })
 defineEmits(['mistakes', 'home', 'toggle-favorite'])
